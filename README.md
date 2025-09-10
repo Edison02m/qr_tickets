@@ -1,46 +1,108 @@
-# Getting Started with Create React App
+# Proyecto de Electrónica - React + Tailwind CSS
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Este proyecto es una aplicación web para el control y monitoreo de dispositivos electrónicos, desarrollada con React y Tailwind CSS 3.4.
 
-## Available Scripts
+## 🚀 Tecnologías Utilizadas
 
-In the project directory, you can run:
+- **React 18** con TypeScript
+- **Tailwind CSS 3.4** para estilos
+- **PostCSS** y **Autoprefixer** para procesamiento de CSS
 
-### `npm start`
+## 📋 Requisitos Previos
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+- Node.js (versión 16 o superior)
+- npm (incluido con Node.js)
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+## 🛠️ Instalación
 
-### `npm test`
+1. Clonar o descargar el proyecto
+2. Navegar al directorio del proyecto:
+   ```bash
+   cd electronic-project
+   ```
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+3. Instalar las dependencias:
+   ```bash
+   npm install
+   ```
 
-### `npm run build`
+## 🏃‍♂️ Ejecución en Desarrollo
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+Para iniciar el servidor de desarrollo:
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+```bash
+npm start
+```
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+La aplicación se abrirá automáticamente en [http://localhost:3000](http://localhost:3000).
 
-### `npm run eject`
+## 📦 Construcción para Producción
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+Para crear una versión optimizada para producción:
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+```bash
+npm run build
+```
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+Los archivos generados estarán en la carpeta `build/`.
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+## 🎨 Estructura del Proyecto
 
-## Learn More
+```
+electronic-project/
+├── src/
+│   ├── components/          # Componentes React
+│   ├── App.tsx             # Componente principal
+│   ├── index.css           # Estilos globales con Tailwind
+│   └── index.tsx           # Punto de entrada
+├── public/
+├── tailwind.config.js      # Configuración de Tailwind CSS
+├── postcss.config.js       # Configuración de PostCSS
+└── package.json            # Dependencias del proyecto
+```
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+## 🔧 Configuración de Tailwind CSS
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+El proyecto está configurado con Tailwind CSS 3.4 con las siguientes características:
+
+- Soporte completo para React y TypeScript
+- Configuración optimizada para producción
+- Clases utilitarias modernas
+- Soporte para modo oscuro (listo para implementar)
+
+## 🎯 Características Implementadas
+
+- **Dashboard electrónico** con tarjetas de estado
+- **Control de sensores** (temperatura, LED, motor)
+- **Interfaz moderna** con diseño responsivo
+- **Animaciones suaves** con Tailwind
+- **Sistema de estados** visual para conexiones
+
+## 📝 Scripts Disponibles
+
+- `npm start` - Inicia el servidor de desarrollo
+- `npm run build` - Construye para producción
+- `npm test` - Ejecuta las pruebas
+- `npm run eject` - Expone la configuración de Create React App
+
+## 🚀 Próximos Pasos
+
+Para continuar desarrollando este proyecto:
+
+1. Agregar componentes adicionales en `src/components/`
+2. Implementar lógica de estado con Context API o Redux
+3. Agregar integración con APIs de hardware
+4. Implementar gráficos en tiempo real
+5. Agregar modo oscuro
+
+## 🤝 Contribución
+
+1. Fork el proyecto
+2. Crea una rama para tu feature (`git checkout -b feature/AmazingFeature`)
+3. Commit tus cambios (`git commit -m 'Add some AmazingFeature'`)
+4. Push a la rama (`git push origin feature/AmazingFeature`)
+5. Abre un Pull Request
+
+## 📄 Licencia
+
+Este proyecto está bajo la licencia MIT.

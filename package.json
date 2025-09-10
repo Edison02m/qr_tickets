@@ -1,6 +1,9 @@
 {
   "name": "electronic-project",
   "version": "0.1.0",
+  "description": "Aplicación de escritorio para control y monitoreo electrónico",
+  "main": "public/electron.js",
+  "homepage": "./",
   "private": true,
   "dependencies": {
     "@testing-library/dom": "^10.4.1",
@@ -21,7 +24,35 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "electron-dev": "concurrently \"cross-env BROWSER=none npm start\" \"wait-on http://localhost:3000 && cross-env ELECTRON_START_URL=http://localhost:3000 electron .\"",
+    "electron-pack": "npm run build && electron-builder",
+    "dist": "npm run build && electron-builder",
+    "pack": "npm run build && electron-builder --dir",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "build": {
+    "appId": "com.electronics.project",
+    "productName": "Proyecto Electrónica",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "build/**/*",
+      "public/electron.js",
+      "public/preload.js",
+      "node_modules/**/*"
+    ],
+    "mac": {
+      "category": "public.app-category.utilities"
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "build/icon.ico"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
   },
   "eslintConfig": {
     "extends": [
@@ -40,5 +71,14 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.4.21",
+    "concurrently": "^9.2.1",
+    "electron": "^38.0.0",
+    "electron-builder": "^26.0.12",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.0",
+    "wait-on": "^8.0.4"
   }
 }

@@ -6,19 +6,15 @@ const { contextBridge, ipcRenderer } = require('electron');
 // Expose protected methods that allow the renderer process to use
 // the ipcRenderer without exposing the entire object
 contextBridge.exposeInMainWorld('electronAPI', {
-  // Example: Send a message to the main process
-  sendMessage: (channel, data) => {
-    const validChannels = ['toMain'];
-    if (validChannels.includes(channel)) {
-      ipcRenderer.send(channel, data);
-    }
-  },
+  // Authentication
+  login: (credentials) => ipcRenderer.invoke('login', credentials),
+  logout: () => ipcRenderer.invoke('logout'),
+  getCurrentUser: () => ipcRenderer.invoke('get-current-user'),
   
-  // Example: Receive a message from the main process
-  receiveMessage: (channel, func) => {
-    const validChannels = ['fromMain'];
-    if (validChannels.includes(channel)) {
-      ipcRenderer.on(channel, (event, ...args) => func(...args));
-    }
-  }
+  // Menu management
+  setMenu: (role) => ipcRenderer.invoke('set-menu', role),
+  
+  // Ticket system
+  getTicketTypes: () => ipcRenderer.invoke('get-ticket-types'),
+  createSale: (saleData) => ipcRenderer.invoke('create-sale', saleData)
 });

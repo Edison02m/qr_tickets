@@ -1,91 +1,193 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import AdminDashboard from './components/admin/AdminDashboard';
+import VendedorDashboard from './components/vendedor/VendedorDashboard';
+
+declare global {
+  interface Window {
+    electronAPI: {
+      login: (credentials: { usuario: string; password: string }) => Promise<{ success: boolean; message?: string; user?: any }>;
+      logout: () => Promise<{ success: boolean }>;
+      getCurrentUser: () => Promise<any>;
+      setMenu: (role: string) => Promise<any>;
+      getTicketTypes: () => Promise<any[]>;
+      createSale: (saleData: any) => Promise<any>;
+    };
+  }
+}
+
+interface User {
+  id: number;
+  nombre: string;
+  usuario: string;
+  rol: 'vendedor' | 'admin';
+}
 
 function App() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    checkCurrentUser();
+    
+    // Listen for menu actions
+    const handleMenuAction = (event: CustomEvent) => {
+      const action = event.detail;
+      switch (action) {
+        case 'logout':
+          handleLogout();
+          break;
+        case 'cash-closure':
+          console.log('Cierre de caja seleccionado');
+          break;
+        case 'users':
+          console.log('Gestión de usuarios seleccionada');
+          break;
+        case 'ticket-types':
+          console.log('Tipos de tickets seleccionados');
+          break;
+        case 'new-sale':
+          console.log('Nueva venta seleccionada');
+          break;
+        case 'daily-sales':
+          console.log('Ventas del día seleccionadas');
+          break;
+      }
+    };
+    
+    window.addEventListener('menu-action', handleMenuAction as EventListener);
+    
+    return () => {
+      window.removeEventListener('menu-action', handleMenuAction as EventListener);
+    };
+  }, []);
+
+  const checkCurrentUser = async () => {
+    try {
+      if (window.electronAPI) {
+        const user = await window.electronAPI.getCurrentUser();
+        if (user) {
+          setCurrentUser(user);
+          setIsLoggedIn(true);
+          // Set menu based on user role
+          await window.electronAPI.setMenu(user.rol);
+        } else {
+          // Ensure login menu is set when no user is logged in
+          await window.electronAPI.setMenu('login');
+        }
+      }
+    } catch (error) {
+      console.error('Error checking current user:', error);
+    }
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-    
-    // Simulate login process
-    setTimeout(() => {
-      setIsLoading(false);
-      if (username === 'admin' && password === 'password') {
-        alert('Acceso concedido');
+    setLoading(true);
+    setError('');
+
+    try {
+      if (window.electronAPI) {
+        const result = await window.electronAPI.login({ usuario: username, password });
+        
+        if (result.success) {
+          setCurrentUser(result.user);
+          setIsLoggedIn(true);
+          // Set menu based on user role
+          await window.electronAPI.setMenu(result.user.rol);
+        } else {
+          setError(result.message || 'Error al iniciar sesión');
+        }
       } else {
-        alert('Credenciales inválidas');
+        setError('Sistema no disponible');
       }
-    }, 1500);
+    } catch (error) {
+      console.error('Error en login:', error);
+      setError('Error de conexión con el servidor');
+    } finally {
+      setLoading(false);
+    }
   };
 
+  const handleLogout = async () => {
+    try {
+      if (window.electronAPI) {
+        await window.electronAPI.logout();
+        await window.electronAPI.setMenu('login');
+      }
+      setIsLoggedIn(false);
+      setCurrentUser(null);
+      setUsername('');
+      setPassword('');
+    } catch (error) {
+      console.error('Error en logout:', error);
+    }
+  };
+
+  if (isLoggedIn && currentUser) {
+    if (currentUser.rol === 'admin') {
+      return <AdminDashboard user={currentUser} onLogout={handleLogout} />;
+    } else {
+      return <VendedorDashboard user={currentUser} onLogout={handleLogout} />;
+    }
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
-        {/* Header */}
-        <div className="text-center pt-8 pb-6">
-          <h1 className="text-3xl font-light text-gray-800 tracking-wide">
-            Inicio de Sesión
-          </h1>
-          <div className="w-12 h-px bg-gray-300 mx-auto mt-3"></div>
-        </div>
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black flex items-center justify-center p-4">
+      <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 w-full max-w-md border border-white/20">
+        <h1 className="text-3xl font-bold text-white text-center mb-8">
+          Inicio de Sesión
+        </h1>
         
-        {/* Form */}
-        <div className="px-8 pb-8">
-          <form onSubmit={handleLogin} className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Usuario
-              </label>
-              <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent transition-all duration-200 bg-gray-50 hover:bg-white"
-                placeholder="Ingresa tu usuario"
-                required
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Contraseña
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent transition-all duration-200 bg-gray-50 hover:bg-white"
-                placeholder="••••••••"
-                required
-              />
-            </div>
-            
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full bg-gray-900 hover:bg-gray-800 text-white font-medium py-3 px-4 rounded-lg transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none shadow-lg"
-            >
-              {isLoading ? (
-                <span className="flex items-center justify-center">
-                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Procesando...
-                </span>
-              ) : (
-                'Iniciar Sesión'
-              )}
-            </button>
-          </form>
-          
-          <div className="mt-6 text-center">
-            <p className="text-xs text-gray-500">
-              Credenciales de prueba: admin / password
-            </p>
+        <form onSubmit={handleLogin} className="space-y-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Usuario
+            </label>
+            <input
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              className="w-full px-4 py-3 bg-white/5 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-white/20 focus:border-transparent transition-all"
+              placeholder="Ingrese su usuario"
+              required
+            />
           </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Contraseña
+            </label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full px-4 py-3 bg-white/5 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-white/20 focus:border-transparent transition-all"
+              placeholder="Ingrese su contraseña"
+              required
+            />
+          </div>
+          
+          {error && (
+            <div className="text-red-400 text-sm text-center">
+              {error}
+            </div>
+          )}
+          
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-white text-black font-semibold py-3 rounded-lg hover:bg-gray-200 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? 'Iniciando...' : 'Iniciar Sesión'}
+          </button>
+        </form>
+        
+        <div className="mt-6 text-center text-sm text-gray-400">
+          <p>Usuario por defecto: admin / admin123</p>
         </div>
       </div>
     </div>

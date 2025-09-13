@@ -15,6 +15,22 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setMenu: (role) => ipcRenderer.invoke('set-menu', role),
   
   // Ticket system
-  getTicketTypes: () => ipcRenderer.invoke('get-ticket-types'),
-  createSale: (saleData) => ipcRenderer.invoke('create-sale', saleData)
+  getTicketTypes: () => ipcRenderer.invoke('getTicketTypes'),
+  getActiveTicketTypes: () => ipcRenderer.invoke('getActiveTicketTypes'),
+  createTicketType: (data) => ipcRenderer.invoke('createTicketType', data),
+  updateTicketType: (data) => ipcRenderer.invoke('updateTicketType', data),
+  toggleTicketTypeStatus: (id, active) => ipcRenderer.invoke('toggleTicketTypeStatus', id, active),
+  deleteTicketType: (id) => ipcRenderer.invoke('deleteTicketType', id),
+  createSale: (ticketTypeId, amount) => ipcRenderer.invoke('createSale', ticketTypeId, amount),
+  getDailySales: () => ipcRenderer.invoke('getDailySales'),
+  // Printing system
+  printTicket: (html) => ipcRenderer.invoke('print-ticket', html)
+
+  // User management
+  ,getUsers: () => ipcRenderer.invoke('getUsers')
+  ,createUser: (data) => ipcRenderer.invoke('createUser', data)
+  ,updateUser: (data) => ipcRenderer.invoke('updateUser', data)
+  ,changeUserPassword: (id, newPassword) => ipcRenderer.invoke('changeUserPassword', id, newPassword)
+  ,toggleUserStatus: (id, active) => ipcRenderer.invoke('toggleUserStatus', id, active)
+  ,deleteUser: (id) => ipcRenderer.invoke('deleteUser', id)
 });

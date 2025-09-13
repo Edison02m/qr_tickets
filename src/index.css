@@ -15,3 +15,37 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+/* Custom animations and helpers for the login UI */
+@keyframes floatUp {
+  0% { transform: translateY(8px); opacity: 0; }
+  50% { transform: translateY(0); opacity: 1; }
+  100% { transform: translateY(-2px); }
+}
+
+.animate-float-up {
+  animation: floatUp 700ms ease both;
+}
+
+.input-underline {
+  background: linear-gradient(90deg, rgba(255,255,255,0.12), rgba(255,255,255,0.04));
+  border-radius: 10px;
+}
+
+.glass-card {
+  background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+  backdrop-filter: blur(8px) saturate(120%);
+}
+
+.input-label {
+  color: #e6edf3;
+}
+
+.toast-error {
+  background: rgba(239,68,68,0.95);
+  color: white;
+}
+
+.logo-bounce {
+  animation: floatUp 1200ms cubic-bezier(.22,.94,.38,1) both;
+}

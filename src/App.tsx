@@ -151,48 +151,48 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-800 via-gray-900 to-black flex items-center justify-center p-6">
-      <div className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-gray-700/30 via-transparent to-transparent opacity-70"></div>
+    <div className="min-h-screen bg-gradient-to-br from-gray-100 via-gray-200 to-gray-300 flex items-center justify-center p-6">
+      <div className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-gray-400/30 via-transparent to-transparent opacity-70"></div>
 
       <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
         {/* Left: Illustration / Logo */}
         <div className="hidden md:flex flex-col items-center justify-center px-8">
-          <div className="bg-gradient-to-br from-black/40 to-white/5 rounded-3xl p-8 glass-card shadow-2xl w-full animate-float-up">
+          <div className="bg-gradient-to-br from-gray-200/60 to-white/10 rounded-3xl p-8 glass-card shadow-2xl w-full animate-float-up">
             <div className="flex items-center justify-center mb-6">
-              <div className="w-20 h-20 rounded-xl bg-gradient-to-br from-white/10 to-white/4 flex items-center justify-center logo-bounce">
+              <div className="w-20 h-20 rounded-xl bg-gradient-to-br from-gray-100/40 to-white/10 flex items-center justify-center logo-bounce">
                 {/* simple SVG logo */}
                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <rect x="2" y="2" width="20" height="20" rx="4" fill="#111827"/>
-                  <path d="M7 12h10" stroke="#F3F4F6" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  <path d="M7 8h10" stroke="#9CA3AF" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/>
-                  <path d="M7 16h6" stroke="#9CA3AF" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/>
+                  <rect x="2" y="2" width="20" height="20" rx="4" fill="#222"/>
+                  <path d="M7 12h10" stroke="#222" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M7 8h10" stroke="#666" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M7 16h6" stroke="#666" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
               </div>
             </div>
 
-            <h2 className="text-2xl font-bold text-white text-center mb-2">Bienvenido al Sistema</h2>
-            <p className="text-center text-gray-300">Gestiona ventas y tickets de forma rápida y confiable.</p>
+            <h2 className="text-2xl font-bold text-gray-900 text-center mb-2">Bienvenido al Sistema</h2>
+            <p className="text-center text-gray-500">Gestiona ventas y tickets de forma rápida y confiable.</p>
           </div>
         </div>
 
         {/* Right: Login card */}
-        <div className="bg-gradient-to-b from-white/6 to-white/2 glass-card rounded-3xl p-8 shadow-2xl border border-white/10 w-full animate-float-up">
+        <div className="bg-gradient-to-b from-white/80 to-gray-100/60 glass-card rounded-3xl p-8 shadow-2xl border border-gray-200 w-full animate-float-up">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h1 className="text-3xl font-extrabold text-white">Iniciar Sesión</h1>
-              <p className="text-sm text-gray-300 mt-1">Ingresa tus credenciales para continuar</p>
+              <h1 className="text-3xl font-extrabold text-gray-900">Iniciar Sesión</h1>
+              <p className="text-sm text-gray-600 mt-1">Ingresa tus credenciales para continuar</p>
             </div>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-5">
             <div>
-              <label className="block text-sm font-medium input-label mb-2">Usuario</label>
+              <label className="block text-sm font-semibold text-gray-800 mb-2">Usuario</label>
               <div className="input-underline flex items-center">
                 <input
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  className="w-full px-4 py-3 bg-transparent border-none rounded-lg text-white placeholder-gray-400 focus:outline-none transition-all"
+                  className="w-full px-4 py-3 bg-white/80 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-400 transition-all"
                   placeholder="Ingrese su usuario"
                   required
                 />
@@ -200,13 +200,13 @@ function App() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium input-label mb-2">Contraseña</label>
+              <label className="block text-sm font-semibold text-gray-800 mb-2">Contraseña</label>
               <div className="input-underline flex items-center">
                 <input
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-4 py-3 bg-transparent border-none rounded-lg text-white placeholder-gray-400 focus:outline-none transition-all"
+                  className="w-full px-4 py-3 bg-white/80 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-400 transition-all"
                   placeholder="Ingrese su contraseña"
                   required
                 />
@@ -222,7 +222,7 @@ function App() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-white text-black font-semibold py-3 rounded-xl hover:opacity-95 shadow-md transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-gray-900 text-white font-semibold py-3 rounded-xl hover:bg-gray-800 shadow-md transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? 'Iniciando...' : 'Iniciar Sesión'}
             </button>

@@ -112,7 +112,7 @@ const NuevaVenta: React.FC = () => {
 
   const generarDocumentoTickets = (tickets: TicketVenta[]) => {
     const ticketsHTML = tickets.map(ticket => generarTicketHTML(ticket)).join('');
-    // No se agrega ningún mensaje de éxito ni advertencia en la ventana de impresión
+    
     return `
       <!DOCTYPE html>
       <html>
@@ -324,15 +324,15 @@ const NuevaVenta: React.FC = () => {
   };
 
   return (
-    <div className="grid grid-cols-1 gap-6 p-6 relative">
+    <div className="w-full h-full flex flex-col items-center justify-center p-2 relative">
       {/* Notificación tipo toast */}
       {notification.show && (
         <div 
-          className="fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg transition-opacity duration-300 flex items-center"
+          className="fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg transition-opacity duration-300 flex items-center text-sm"
           style={{ zIndex: 1000 }}
         >
           <svg 
-            className="w-5 h-5 mr-2" 
+            className="w-4 h-4 mr-2" 
             fill="none" 
             strokeLinecap="round" 
             strokeLinejoin="round" 
@@ -346,28 +346,22 @@ const NuevaVenta: React.FC = () => {
         </div>
       )}
 
-      <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-xl font-semibold text-gray-800 mb-4">
-          Nueva Venta de Ticket
-        </h2>
-
-        {error && (
-          <div className="mb-4 p-4 bg-red-100 text-red-700 rounded-lg">
-            {error}
-          </div>
-        )}
-
-        <div className="space-y-4">
-          <h3 className="text-lg font-medium text-gray-700">
+      <div className="bg-white rounded-lg shadow p-3 w-full max-w-6xl mx-auto flex flex-col md:flex-row gap-4 min-h-[500px]">
+        {/* Columna izquierda: selección de tickets */}
+        <div className="flex-1 border-r border-gray-200 pr-0 md:pr-4 pb-4 md:pb-0">
+          <h2 className="text-lg font-semibold text-gray-800 mb-2">
+            Nueva Venta de Ticket
+          </h2>
+          <h3 className="text-base font-medium text-gray-700 mb-2">
             Seleccione los tickets:
           </h3>
-          <div className="grid gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-2 gap-2">
             {ticketTypes.map((ticket) => {
               const selectedCount = selectedTickets.find(t => t.ticket.id === ticket.id)?.cantidad || 0;
               return (
                 <div
                   key={ticket.id}
-                  className={`p-4 rounded-lg border transition-colors ${
+                  className={`p-2 rounded-md border transition-colors text-sm ${
                     selectedCount > 0
                       ? 'border-blue-500 bg-blue-50'
                       : 'border-gray-200'
@@ -376,32 +370,32 @@ const NuevaVenta: React.FC = () => {
                   <div className="flex justify-between items-center">
                     <div>
                       <span className="font-medium">{ticket.nombre}</span>
-                      <p className="text-sm text-gray-600">
+                      <p className="text-xs text-gray-600">
                         ${ticket.precio.toFixed(2)} c/u
                       </p>
                     </div>
-                    <div className="flex items-center space-x-3">
+                    <div className="flex items-center space-x-2">
                       <button
                         onClick={() => handleTicketQuantityChange(ticket, Math.max(0, selectedCount - 1))}
                         disabled={loading || selectedCount === 0}
-                        className="w-8 h-8 flex items-center justify-center rounded-full border border-gray-300 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-7 h-7 flex items-center justify-center rounded-full border border-gray-300 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed text-base"
                       >
                         -
                       </button>
-                      <span className="w-8 text-center font-semibold">
+                      <span className="w-7 text-center font-semibold">
                         {selectedCount}
                       </span>
                       <button
                         onClick={() => handleTicketQuantityChange(ticket, selectedCount + 1)}
                         disabled={loading}
-                        className="w-8 h-8 flex items-center justify-center rounded-full border border-gray-300 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-7 h-7 flex items-center justify-center rounded-full border border-gray-300 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed text-base"
                       >
                         +
                       </button>
                     </div>
                   </div>
                   {selectedCount > 0 && (
-                    <div className="mt-2 text-right text-sm text-gray-600">
+                    <div className="mt-1 text-right text-xs text-gray-600">
                       Subtotal: ${(ticket.precio * selectedCount).toFixed(2)}
                     </div>
                   )}
@@ -409,22 +403,53 @@ const NuevaVenta: React.FC = () => {
               );
             })}
           </div>
+        </div>
 
-          {totalVenta > 0 && (
-            <div className="pt-4 border-t">
-              <div className="flex justify-between items-center mb-4">
-                <span className="text-lg font-medium">Total:</span>
-                <span className="text-2xl font-bold">${totalVenta.toFixed(2)}</span>
-              </div>
-              <button
-                onClick={handleVenta}
-                disabled={loading}
-                className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-lg font-semibold"
-              >
-                {loading ? 'Procesando...' : 'Confirmar Venta'}
-              </button>
+        {/* Columna derecha: totales y confirmación */}
+  <div className="w-full md:w-80 flex-shrink-0 flex flex-col items-stretch pl-0 md:pl-4">
+          {error && (
+            <div className="mb-2 p-2 bg-red-100 text-red-700 rounded-lg text-sm">
+              {error}
             </div>
           )}
+          <div className="flex-1 flex flex-col justify-start">
+            {totalVenta === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-gray-400 py-12">
+                <svg width="64" height="64" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="mb-4 opacity-60">
+                  <rect x="4" y="7" width="16" height="10" rx="3" stroke="#cbd5e1" strokeWidth="1.5"/>
+                  <path d="M8 11h8" stroke="#cbd5e1" strokeWidth="1.5" strokeLinecap="round"/>
+                  <path d="M8 15h4" stroke="#cbd5e1" strokeWidth="1.5" strokeLinecap="round"/>
+                </svg>
+                <span className="text-base font-medium text-gray-500 text-center">Selecciona tickets a la izquierda<br />para procesar una venta</span>
+              </div>
+            ) : (
+              <div className="pt-2 border-t">
+                {/* Resumen de tickets seleccionados */}
+                <div className="mb-4">
+                  <h4 className="text-sm font-semibold text-gray-700 mb-2">Tickets seleccionados:</h4>
+                  <ul className="space-y-1">
+                    {selectedTickets.map(({ ticket, cantidad }) => (
+                      <li key={ticket.id} className="flex justify-between items-center text-sm text-gray-800">
+                        <span>{cantidad} x {ticket.nombre}</span>
+                        <span className="text-gray-500">${(ticket.precio * cantidad).toFixed(2)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-base font-medium">Total:</span>
+                  <span className="text-xl font-bold">${totalVenta.toFixed(2)}</span>
+                </div>
+                <button
+                  onClick={handleVenta}
+                  disabled={loading || totalVenta === 0}
+                  className="w-full bg-blue-600 text-white py-2 px-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-base font-semibold mt-2"
+                >
+                  {loading ? 'Procesando...' : 'Confirmar Venta'}
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

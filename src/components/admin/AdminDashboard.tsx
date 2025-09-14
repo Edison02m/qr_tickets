@@ -51,32 +51,48 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
       case 'users':
         return <UsersAdmin />;
       case 'cash-closure':
-        return <div className="p-6">Cierre de Caja (En desarrollo)</div>;
+        return <div className="p-8 glass-card rounded-2xl shadow-xl border border-gray-200">Cierre de Caja (En desarrollo)</div>;
       case 'daily-sales':
-        return <div className="p-6">Ventas del Día (En desarrollo)</div>;
+        return <div className="p-8 glass-card rounded-2xl shadow-xl border border-gray-200">Ventas del Día (En desarrollo)</div>;
       default:
         return (
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">
-              Vista de Administrador
-            </h2>
-            <p className="text-gray-600">
-              Esta es la vista exclusiva para administradores. Seleccione una opción del menú superior
-              para acceder a las diferentes funciones del sistema.
-            </p>
-            <div className="mt-6 space-y-4">
-              <div className="border-l-4 border-blue-500 pl-4">
-                <h3 className="text-lg font-medium text-gray-900">Gestión de Usuarios</h3>
-                <p className="text-sm text-gray-600">Administrar usuarios del sistema</p>
-              </div>
-              <div className="border-l-4 border-green-500 pl-4">
-                <h3 className="text-lg font-medium text-gray-900">Tipos de Tickets</h3>
-                <p className="text-sm text-gray-600">Administrar tipos y precios de tickets</p>
-              </div>
-              <div className="border-l-4 border-yellow-500 pl-4">
-                <h3 className="text-lg font-medium text-gray-900">Reportes y Estadísticas</h3>
-                <p className="text-sm text-gray-600">Ver reportes detallados de ventas</p>
-              </div>
+          <div className="bg-gradient-to-br from-gray-50 via-gray-100 to-gray-200 glass-card rounded-2xl shadow-xl p-8 border border-gray-200">
+            <h2 className="text-2xl font-bold text-gray-900 mb-2 tracking-tight">Panel de Administrador</h2>
+            <p className="text-gray-500 mb-6 text-base">Bienvenido, <span className="font-semibold text-gray-800">{user.nombre}</span>. Selecciona una opción para comenzar.</p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-4">
+              <button
+                className="glass-card rounded-xl p-6 flex flex-col items-center shadow group transition hover:shadow-lg border border-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                onClick={() => setCurrentView('users')}
+                tabIndex={0}
+              >
+                <div className="mb-3">
+                  <svg className="w-8 h-8 text-blue-400 group-hover:text-blue-600 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 12v4m0 0v4m0-4h4m-4 0h-4" /></svg>
+                </div>
+                <h3 className="text-lg font-semibold text-gray-800 mb-1">Gestión de Usuarios</h3>
+                <p className="text-sm text-gray-500 text-center">Administra los usuarios del sistema.</p>
+              </button>
+              <button
+                className="glass-card rounded-xl p-6 flex flex-col items-center shadow group transition hover:shadow-lg border border-gray-100 focus:outline-none focus:ring-2 focus:ring-green-400"
+                onClick={() => setCurrentView('ticket-types')}
+                tabIndex={0}
+              >
+                <div className="mb-3">
+                  <svg className="w-8 h-8 text-green-400 group-hover:text-green-600 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v8m0 0v4m0-4h4m-4 0h-4" /></svg>
+                </div>
+                <h3 className="text-lg font-semibold text-gray-800 mb-1">Tipos de Tickets</h3>
+                <p className="text-sm text-gray-500 text-center">Administra los tipos y precios de tickets.</p>
+              </button>
+              <button
+                className="glass-card rounded-xl p-6 flex flex-col items-center shadow group transition hover:shadow-lg border border-gray-100 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                onClick={() => setCurrentView('daily-sales')}
+                tabIndex={0}
+              >
+                <div className="mb-3">
+                  <svg className="w-8 h-8 text-yellow-400 group-hover:text-yellow-600 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-6a2 2 0 012-2h2a2 2 0 012 2v6" /></svg>
+                </div>
+                <h3 className="text-lg font-semibold text-gray-800 mb-1">Reportes y Estadísticas</h3>
+                <p className="text-sm text-gray-500 text-center">Consulta reportes detallados de ventas.</p>
+              </button>
             </div>
           </div>
         );
@@ -84,27 +100,36 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <div className="bg-white shadow">
+    <div className="min-h-screen bg-gradient-to-br from-gray-100 via-gray-200 to-gray-300 flex flex-col">
+      <header className="bg-white/80 backdrop-blur border-b border-gray-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Panel de Administrador</h1>
-              <p className="text-sm text-gray-600 mt-1">Bienvenido, {user.nombre}</p>
+              <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Panel de Administrador</h1>
+              <p className="text-sm text-gray-500 mt-1">Bienvenido, <span className="font-medium text-gray-800">{user.nombre}</span></p>
             </div>
-            <button
-              onClick={onLogout}
-              className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition-colors"
-            >
-              Cerrar Sesión
-            </button>
+            <div className="flex items-center space-x-4">
+              {currentView !== 'main' && (
+                <button
+                  onClick={() => setCurrentView('main')}
+                  className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg shadow hover:bg-gray-200 transition-colors"
+                >
+                  Volver al Inicio
+                </button>
+              )}
+              <button
+                onClick={onLogout}
+                className="bg-gray-900 text-white px-4 py-2 rounded-lg shadow hover:bg-gray-800 transition-colors"
+              >
+                Cerrar Sesión
+              </button>
+            </div>
           </div>
         </div>
-      </div>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      </header>
+      <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {renderContent()}
-      </div>
+      </main>
     </div>
   );
 };

@@ -4,6 +4,54 @@ const path = require('path');
 const dbPath = path.join(__dirname, '../../database.sqlite');
 
 class Database {
+  // Obtener todas las ventas del día (para admin)
+  getAllDailySales() {
+    return new Promise((resolve, reject) => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      this.db.all(
+        `SELECT v.id as venta_id, v.fecha_venta, v.total, v.anulada,
+                u.nombre as vendedor, u.usuario as vendedor_usuario,
+                t.id as ticket_id, t.codigo_qr, t.precio as ticket_precio, tt.nombre as tipo_ticket
+         FROM ventas v
+         JOIN usuarios u ON v.usuario_id = u.id
+         JOIN tickets t ON v.id = t.venta_id
+         JOIN tipos_ticket tt ON t.tipo_ticket_id = tt.id
+         WHERE date(v.fecha_venta) = date(?)
+         ORDER BY v.fecha_venta DESC, v.id DESC`,
+        [today.toISOString()],
+        (err, rows) => {
+          if (err) reject(err);
+          else resolve(rows);
+        }
+      );
+    });
+  }
+
+  // Anular una venta (cambia el estado anulada y los tickets asociados)
+  annulSale(ventaId) {
+    return new Promise((resolve, reject) => {
+      // Marcar la venta como anulada y los tickets como anulados
+      this.db.run(
+        'UPDATE ventas SET anulada = 1 WHERE id = ?',
+        [ventaId],
+        (err) => {
+          if (err) {
+            reject(err);
+            return;
+          }
+          this.db.run(
+            'UPDATE tickets SET anulado = 1 WHERE venta_id = ?',
+            [ventaId],
+            (err2) => {
+              if (err2) reject(err2);
+              else resolve({ ventaId, anulada: true });
+            }
+          );
+        }
+      );
+    });
+  }
   constructor() {
     this.db = new sqlite3.Database(dbPath);
     this.initialize();

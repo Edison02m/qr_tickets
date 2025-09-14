@@ -22,10 +22,14 @@ declare global {
       // CRUD usuarios
       getUsers: () => Promise<any[]>;
       createUser: (data: { nombre: string; usuario: string; password: string; rol: string }) => Promise<any>;
-  updateUser: (data: { id: number; nombre: string; usuario: string; rol: string }) => Promise<any>;
+      updateUser: (data: { id: number; nombre: string; usuario: string; rol: string }) => Promise<any>;
       changeUserPassword: (id: number, newPassword: string) => Promise<any>;
       toggleUserStatus: (id: number, active: boolean) => Promise<any>;
       deleteUser: (id: number) => Promise<any>;
+
+      // Ventas admin
+      getAllDailySales: () => Promise<any[]>;
+      annulSale: (ventaId: number) => Promise<any>;
     };
   }
 }

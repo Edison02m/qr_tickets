@@ -33,4 +33,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   ,changeUserPassword: (id, newPassword) => ipcRenderer.invoke('changeUserPassword', id, newPassword)
   ,toggleUserStatus: (id, active) => ipcRenderer.invoke('toggleUserStatus', id, active)
   ,deleteUser: (id) => ipcRenderer.invoke('deleteUser', id)
+
+  // Ventas del día para admin
+  ,getAllDailySales: () => ipcRenderer.invoke('getAllDailySales')
+  ,annulSale: (ventaId) => ipcRenderer.invoke('annulSale', ventaId)
 });

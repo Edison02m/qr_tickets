@@ -107,10 +107,8 @@ const VendedorDashboard: React.FC<VendedorDashboardProps> = ({ user, onLogout })
           </div>
         </div>
       </header>
-      <main className="flex-1 w-full h-full p-0 m-0 overflow-hidden">
-        <div className="w-full h-full min-h-screen min-w-0 flex flex-col justify-start items-stretch">
-          {renderContent()}
-        </div>
+      <main className="flex-1 w-full h-full px-0 py-0">
+        {renderContent()}
       </main>
     </div>
   );

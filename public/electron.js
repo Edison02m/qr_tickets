@@ -206,6 +206,25 @@ ipcMain.handle('set-menu', (event, role) => {
 });
 
 // IPC handlers for ticket types
+// IPC handler para obtener todas las ventas del día (admin)
+ipcMain.handle('getAllDailySales', async () => {
+  try {
+    return await db.getAllDailySales();
+  } catch (error) {
+    console.error('Error getting all daily sales:', error);
+    throw error;
+  }
+});
+
+// IPC handler para anular una venta
+ipcMain.handle('annulSale', async (event, ventaId) => {
+  try {
+    return await db.annulSale(ventaId);
+  } catch (error) {
+    console.error('Error annulling sale:', error);
+    throw error;
+  }
+});
 // IPC handlers para usuarios
 ipcMain.handle('getUsers', async () => {
   try {

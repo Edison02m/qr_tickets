@@ -44,6 +44,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
     };
   }, []);
 
+  // Integrar DailySalesAdmin
+  // Importar el componente
+  // ...existing code...
+  const DailySalesAdmin = require('./DailySalesAdmin').default;
+
   const renderContent = () => {
     switch (currentView) {
       case 'ticket-types':
@@ -53,7 +58,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
       case 'cash-closure':
         return <div className="p-8 glass-card rounded-2xl shadow-xl border border-gray-200">Cierre de Caja (En desarrollo)</div>;
       case 'daily-sales':
-        return <div className="p-8 glass-card rounded-2xl shadow-xl border border-gray-200">Ventas del Día (En desarrollo)</div>;
+        return <DailySalesAdmin />;
       default:
         return (
           <div className="bg-gradient-to-br from-gray-50 via-gray-100 to-gray-200 glass-card rounded-2xl shadow-xl p-8 border border-gray-200">

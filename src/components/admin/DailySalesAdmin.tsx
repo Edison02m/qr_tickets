@@ -14,6 +14,10 @@ interface Venta {
 }
 
 const DailySalesAdmin: React.FC = () => {
+  // ...existing code...
+  // Paginación
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
   // Filtro por código de ticket
   const [filterCodigo, setFilterCodigo] = useState('');
   // Filtros de fecha y estado
@@ -27,7 +31,8 @@ const DailySalesAdmin: React.FC = () => {
   const getFilteredVentas = () => {
     let ventasArr = Object.values(ventasAgrupadas);
     ventasArr = ventasArr.filter(v => {
-      const ventaDate = new Date(v.fecha_venta).toISOString().slice(0, 10);
+      // Comparar solo la parte de la fecha (sin hora)
+      const ventaDate = v.fecha_venta.length >= 10 ? v.fecha_venta.slice(0, 10) : new Date(v.fecha_venta).toISOString().slice(0, 10);
       const matchDate = ventaDate === filterDate;
       const matchEstado = filterEstado === 'todos' || (filterEstado === 'activa' ? v.anulada === 0 : v.anulada === 1);
       // Si hay filtro de código, al menos uno de los tickets debe coincidir
@@ -44,7 +49,7 @@ const DailySalesAdmin: React.FC = () => {
   // Función para ordenar ventas filtradas
   const getSortedVentas = () => {
     const ventasArr = getFilteredVentas();
-    return ventasArr.sort((a, b) => {
+    const sorted = ventasArr.sort((a, b) => {
       switch (sortBy) {
         case 'fecha':
           return sortDir === 'asc'
@@ -62,6 +67,10 @@ const DailySalesAdmin: React.FC = () => {
           return 0;
       }
     });
+    // Paginación
+    const start = (currentPage - 1) * pageSize;
+    const end = start + pageSize;
+    return sorted.slice(start, end);
   };
 
   // Handler para cambiar orden
@@ -80,7 +89,12 @@ const DailySalesAdmin: React.FC = () => {
 
   useEffect(() => {
     fetchVentas();
+    setCurrentPage(1); // Reiniciar página al cargar ventas
   }, []);
+  // Reiniciar página al cambiar filtros
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterDate, filterEstado, filterCodigo]);
 
   const fetchVentas = async () => {
     setLoading(true);
@@ -132,6 +146,16 @@ const DailySalesAdmin: React.FC = () => {
     vendedor_usuario: string;
     tickets: Venta[];
   }>);
+
+  // Calcular total de páginas (después de ventasAgrupadas y pageSize)
+  const totalFiltered = Object.values(ventasAgrupadas).filter(v => {
+    const ventaDate = v.fecha_venta.length >= 10 ? v.fecha_venta.slice(0, 10) : new Date(v.fecha_venta).toISOString().slice(0, 10);
+    const matchDate = ventaDate === filterDate;
+    const matchEstado = filterEstado === 'todos' || (filterEstado === 'activa' ? v.anulada === 0 : v.anulada === 1);
+    const matchCodigo = !filterCodigo.trim() || v.tickets.some(t => t.codigo_qr.toLowerCase().includes(filterCodigo.trim().toLowerCase()));
+    return matchDate && matchEstado && matchCodigo;
+  });
+  const totalPages = Math.max(1, Math.ceil(totalFiltered.length / pageSize));
 
   return (
     <div className="p-6">
@@ -191,6 +215,7 @@ const DailySalesAdmin: React.FC = () => {
         ) : getSortedVentas().length === 0 ? (
           <div className="text-gray-500 p-6">No hay ventas para los filtros seleccionados.</div>
         ) : (
+          <>
           <table className="min-w-full text-sm">
             <thead className="bg-gray-50">
               <tr>
@@ -266,6 +291,31 @@ const DailySalesAdmin: React.FC = () => {
               ))}
             </tbody>
           </table>
+          {/* Paginación mejorada */}
+          <div className="flex justify-center items-center gap-4 mt-6">
+            <button
+              className={`flex items-center gap-1 px-4 py-2 rounded-lg border transition-all shadow-sm font-semibold text-sm
+                ${currentPage === 1 ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed' : 'bg-white text-blue-600 border-blue-300 hover:bg-blue-50 hover:shadow-md'}`}
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+              Anterior
+            </button>
+            <span className="px-4 py-2 rounded-lg bg-gray-50 border border-gray-200 text-gray-700 font-bold text-base shadow-sm select-none">
+              Página {currentPage} de {totalPages}
+            </span>
+            <button
+              className={`flex items-center gap-1 px-4 py-2 rounded-lg border transition-all shadow-sm font-semibold text-sm
+                ${(currentPage >= totalPages) ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed' : 'bg-white text-blue-600 border-blue-300 hover:bg-blue-50 hover:shadow-md'}`}
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage >= totalPages}
+            >
+              Siguiente
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+            </button>
+          </div>
+          </>
         )}
       </div>
     </div>

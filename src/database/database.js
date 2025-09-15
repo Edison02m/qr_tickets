@@ -4,22 +4,64 @@ const path = require('path');
 const dbPath = path.join(__dirname, '../../database.sqlite');
 
 class Database {
-  // Obtener todas las ventas del día (para admin)
+  // Actualizar cierre de caja existente
+  updateCashClosure({ usuario_id, fecha_inicio, total_ventas, cantidad_tickets, detalle_tipos }) {
+    return new Promise((resolve, reject) => {
+      this.db.run(
+        `UPDATE cierres_caja SET total_ventas = ?, cantidad_tickets = ?, detalle_tipos = ?, fecha_cierre = CURRENT_TIMESTAMP
+         WHERE usuario_id = ? AND date(fecha_inicio) = date(?)`,
+        [total_ventas, cantidad_tickets, detalle_tipos, usuario_id, fecha_inicio],
+        function(err) {
+          if (err) reject(err);
+          else resolve({ updated: this.changes });
+        }
+      );
+    });
+  }
+  // Obtener todos los cierres de caja
+  getAllCashClosures() {
+    return new Promise((resolve, reject) => {
+      this.db.all(
+        `SELECT cc.*, u.nombre as usuario_nombre, u.usuario as usuario_usuario
+         FROM cierres_caja cc
+         JOIN usuarios u ON cc.usuario_id = u.id
+         ORDER BY cc.fecha_cierre DESC`,
+        [],
+        (err, rows) => {
+          if (err) reject(err);
+          else resolve(rows);
+        }
+      );
+    });
+  }
+
+  // Crear un nuevo cierre de caja
+  createCashClosure({ usuario_id, fecha_inicio, total_ventas, cantidad_tickets, detalle_tipos }) {
+    return new Promise((resolve, reject) => {
+      this.db.run(
+        `INSERT INTO cierres_caja (usuario_id, fecha_inicio, total_ventas, cantidad_tickets, detalle_tipos)
+         VALUES (?, ?, ?, ?, ?)`,
+        [usuario_id, fecha_inicio, total_ventas, cantidad_tickets, detalle_tipos],
+        function(err) {
+          if (err) reject(err);
+          else resolve({ id: this.lastID });
+        }
+      );
+    });
+  }
+  // Obtener todos los tickets vendidos (para admin, sin filtrar por fecha)
   getAllDailySales() {
     return new Promise((resolve, reject) => {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
       this.db.all(
         `SELECT v.id as venta_id, v.fecha_venta, v.total, v.anulada,
                 u.nombre as vendedor, u.usuario as vendedor_usuario,
                 t.id as ticket_id, t.codigo_qr, t.precio as ticket_precio, tt.nombre as tipo_ticket
-         FROM ventas v
+         FROM tickets t
+         JOIN ventas v ON t.venta_id = v.id
          JOIN usuarios u ON v.usuario_id = u.id
-         JOIN tickets t ON v.id = t.venta_id
          JOIN tipos_ticket tt ON t.tipo_ticket_id = tt.id
-         WHERE date(v.fecha_venta) = date(?)
-         ORDER BY v.fecha_venta DESC, v.id DESC`,
-        [today.toISOString()],
+         ORDER BY v.fecha_venta DESC, v.id DESC, t.id DESC`,
+        [],
         (err, rows) => {
           if (err) reject(err);
           else resolve(rows);
@@ -302,10 +344,9 @@ class Database {
     });
   }
 
-  // Registrar una nueva venta
-  createSale(userId, ticketTypeId, totalAmount) {
+  // Registrar una nueva venta, ahora acepta qrCode generado en el frontend
+  createSale(userId, ticketTypeId, totalAmount, qrCode) {
     return new Promise((resolve, reject) => {
-      const qrCode = this.generateUniqueQRCode();
       let ventaId;
 
       const runQuery = (query, params) => {
@@ -330,9 +371,7 @@ class Database {
           );
           ventaId = ventaResult.lastID;
 
-          console.log('Venta creada con ID:', ventaId); // Debug log
-
-          // Insertar el ticket
+          // Insertar el ticket con el código QR recibido
           await runQuery(
             'INSERT INTO tickets (venta_id, tipo_ticket_id, codigo_qr, precio) VALUES (?, ?, ?, ?)',
             [ventaId, ticketTypeId, qrCode, totalAmount]
@@ -350,7 +389,6 @@ class Database {
             fecha: new Date().toISOString()
           });
         } catch (error) {
-          console.error('Error en la transacción:', error); // Debug log
           await runQuery('ROLLBACK', [])
             .catch(rollbackError => console.error('Error en rollback:', rollbackError));
           reject(error);

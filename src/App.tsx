@@ -15,7 +15,7 @@ declare global {
       updateTicketType: (data: { id: number; nombre: string; precio: number }) => Promise<any>;
       deleteTicketType: (id: number) => Promise<any>;
       toggleTicketTypeStatus: (id: number, active: boolean) => Promise<any>;
-      createSale: (ticketTypeId: number, amount: number) => Promise<any>;
+  createSale: (ticketTypeId: number, amount: number, qrCode: string) => Promise<any>;
       getDailySales: () => Promise<any[]>;
       printTicket: (html: string) => Promise<{ success: boolean }>;
 
@@ -27,9 +27,14 @@ declare global {
       toggleUserStatus: (id: number, active: boolean) => Promise<any>;
       deleteUser: (id: number) => Promise<any>;
 
-      // Ventas admin
-      getAllDailySales: () => Promise<any[]>;
-      annulSale: (ventaId: number) => Promise<any>;
+  // Ventas admin
+  getAllDailySales: () => Promise<any[]>;
+  annulSale: (ventaId: number) => Promise<any>;
+
+  // Cierres de caja
+  getAllCashClosures: () => Promise<any[]>;
+  createCashClosure: (data: { usuario_id: number; fecha_inicio: string; total_ventas: number; cantidad_tickets: number; detalle_tipos: string; }) => Promise<any>;
+  updateCashClosure: (data: { usuario_id: number; fecha_inicio: string; total_ventas: number; cantidad_tickets: number; detalle_tipos: string; }) => Promise<any>;
     };
   }
 }

@@ -44,10 +44,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
     };
   }, []);
 
-  // Integrar DailySalesAdmin
-  // Importar el componente
-  // ...existing code...
+  // Importar componentes
   const DailySalesAdmin = require('./DailySalesAdmin').default;
+  const CashClosureAdmin = require('./CashClosureAdmin').default;
 
   const renderContent = () => {
     switch (currentView) {
@@ -56,7 +55,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
       case 'users':
         return <UsersAdmin />;
       case 'cash-closure':
-        return <div className="p-8 glass-card rounded-2xl shadow-xl border border-gray-200">Cierre de Caja (En desarrollo)</div>;
+        return <CashClosureAdmin userId={user.id} />;
       case 'daily-sales':
         return <DailySalesAdmin />;
       default:
@@ -64,7 +63,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
           <div className="bg-gradient-to-br from-gray-50 via-gray-100 to-gray-200 glass-card rounded-2xl shadow-xl p-8 border border-gray-200">
             <h2 className="text-2xl font-bold text-gray-900 mb-2 tracking-tight">Panel de Administrador</h2>
             <p className="text-gray-500 mb-6 text-base">Bienvenido, <span className="font-semibold text-gray-800">{user.nombre}</span>. Selecciona una opción para comenzar.</p>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mt-4">
               <button
                 className="glass-card rounded-xl p-6 flex flex-col items-center shadow group transition hover:shadow-lg border border-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400"
                 onClick={() => setCurrentView('users')}
@@ -97,6 +96,17 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
                 </div>
                 <h3 className="text-lg font-semibold text-gray-800 mb-1">Reportes y Estadísticas</h3>
                 <p className="text-sm text-gray-500 text-center">Consulta reportes detallados de ventas.</p>
+              </button>
+              <button
+                className="glass-card rounded-xl p-6 flex flex-col items-center shadow group transition hover:shadow-lg border border-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                onClick={() => setCurrentView('cash-closure')}
+                tabIndex={0}
+              >
+                <div className="mb-3">
+                  <svg className="w-8 h-8 text-purple-400 group-hover:text-purple-600 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a5 5 0 00-10 0v2a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2z" /></svg>
+                </div>
+                <h3 className="text-lg font-semibold text-gray-800 mb-1">Cierres de Caja</h3>
+                <p className="text-sm text-gray-500 text-center">Ver y realizar cierres de caja.</p>
               </button>
             </div>
           </div>

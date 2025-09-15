@@ -73,8 +73,18 @@ const NuevaVenta: React.FC = () => {
     });
   };
 
-  // Generar el QR code para un ticket específico
-  const generarQRCode = (qrCode: string) => {
+
+  // Generar el código QR en el formato solicitado
+  const generarCodigoQR = (tipoTicketNombre: string) => {
+    // Limpiar el nombre del tipo de ticket para el código
+    const tipo = tipoTicketNombre.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+    const random1 = Math.random().toString(36).substring(2, 10);
+    const random2 = Math.random().toString(36).substring(2, 8);
+    return `ticket-${tipo}-${random1}-${random2}`;
+  };
+
+  // Generar el QR code SVG para impresión
+  const generarQRCodeSVG = (qrCode: string) => {
     return ReactDOMServer.renderToString(
       <QRCodeSVG
         value={qrCode}
@@ -86,8 +96,7 @@ const NuevaVenta: React.FC = () => {
 
   const generarTicketHTML = (ticketVenta: TicketVenta) => {
     const ticketType = ticketTypes.find(t => t.id === ticketVenta.ticketTypeId);
-    const qrCodeHTML = generarQRCode(ticketVenta.qrCode);
-    
+    const qrCodeHTML = generarQRCodeSVG(ticketVenta.qrCode);
     return `
       <div class="ticket">
         <div class="ticket-header">
@@ -210,6 +219,7 @@ const NuevaVenta: React.FC = () => {
         message: 'Procesando venta...'
       });
 
+
       // Procesar cada ticket seleccionado
       for (const selectedTicket of selectedTickets) {
         // Validar datos del ticket
@@ -220,17 +230,25 @@ const NuevaVenta: React.FC = () => {
         // Procesar la cantidad solicitada de cada tipo
         for (let i = 0; i < selectedTicket.cantidad; i++) {
           try {
-            // Crear la venta en la base de datos
+            // Generar el código QR en el frontend
+            const qrCode = generarCodigoQR(selectedTicket.ticket.nombre);
+
+            // Crear la venta en la base de datos, enviando el código QR generado
             const result = await window.electronAPI.createSale(
               selectedTicket.ticket.id,
-              selectedTicket.ticket.precio
+              selectedTicket.ticket.precio,
+              qrCode // Nuevo argumento: código QR generado en el frontend
             );
 
-            if (!result || !result.ventaId || !result.qrCode) {
+            // Usar el código QR generado en el frontend para impresión y registro
+            if (!result || !result.ventaId) {
               throw new Error('Error en la respuesta del servidor');
             }
 
-            ticketsVendidos.push(result);
+            ticketsVendidos.push({
+              ...result,
+              qrCode // Aseguramos que el código QR usado sea el generado aquí
+            });
 
             // Actualizar la notificación con el progreso
             setNotification({

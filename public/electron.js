@@ -206,6 +206,34 @@ ipcMain.handle('set-menu', (event, role) => {
 });
 
 // IPC handlers for ticket types
+// IPC handler para obtener todos los cierres de caja
+ipcMain.handle('getAllCashClosures', async () => {
+  try {
+    return await db.getAllCashClosures();
+  } catch (error) {
+    console.error('Error getting cash closures:', error);
+    throw error;
+  }
+});
+
+// IPC handler para crear un nuevo cierre de caja
+ipcMain.handle('createCashClosure', async (event, data) => {
+  try {
+    return await db.createCashClosure(data);
+  } catch (error) {
+    console.error('Error creating cash closure:', error);
+    throw error;
+  }
+});
+// IPC handler para actualizar cierre de caja existente
+ipcMain.handle('updateCashClosure', async (event, data) => {
+  try {
+    return await db.updateCashClosure(data);
+  } catch (error) {
+    console.error('Error updating cash closure:', error);
+    throw error;
+  }
+});
 // IPC handler para obtener todas las ventas del día (admin)
 ipcMain.handle('getAllDailySales', async () => {
   try {
@@ -335,37 +363,40 @@ ipcMain.handle('deleteTicketType', async (event, id) => {
 });
 
 ipcMain.handle('createSale', async (event, ticketTypeId, amount) => {
-  console.log('Recibida solicitud de venta:', { ticketTypeId, amount });
-  
+  // Ahora acepta el código QR generado en el frontend
+  // ticketTypeId, amount, qrCode
   try {
     if (!currentUser) {
       throw new Error('No hay usuario autenticado');
     }
-    
-    if (typeof ticketTypeId !== 'number' || typeof amount !== 'number') {
-      console.error('Tipos de datos incorrectos:', { ticketTypeId, amount });
+
+    // El frontend envía 3 argumentos
+    const args = Array.from(arguments)[1];
+    let ticketTypeId, amount, qrCode;
+    if (Array.isArray(args)) {
+      // Si se recibe como array
+      [ticketTypeId, amount, qrCode] = args;
+    } else {
+      // Si se recibe como argumentos normales
+      ticketTypeId = arguments[1];
+      amount = arguments[2];
+      qrCode = arguments[3];
+    }
+
+    if (typeof ticketTypeId !== 'number' || typeof amount !== 'number' || typeof qrCode !== 'string') {
       throw new Error('Datos de venta inválidos');
     }
-
-    if (!ticketTypeId || !amount) {
+    if (!ticketTypeId || !amount || !qrCode) {
       throw new Error('Datos de venta incompletos');
     }
-
-    console.log('Creando venta:', {
-      userId: currentUser.id,
-      ticketTypeId,
-      amount
-    });
 
     const result = await db.createSale(
       parseInt(currentUser.id, 10),
       ticketTypeId,
-      amount
+      amount,
+      qrCode
     );
-
-    console.log('Venta creada exitosamente:', result);
     return result;
-
   } catch (error) {
     console.error('Error detallado en createSale:', error);
     throw error;

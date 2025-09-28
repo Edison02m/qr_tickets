@@ -139,7 +139,7 @@ class Database {
   // Crear un nuevo cierre de caja (mantenido para compatibilidad)
   createCashClosure({ usuario_id, fecha_inicio, total_ventas, cantidad_tickets, detalle_tipos }) {
     return new Promise((resolve, reject) => {
-      this.db.run(
+      this.db.runf(
         `INSERT INTO cierres_caja (usuario_id, fecha_inicio, total_ventas, cantidad_tickets, detalle_tipos)
          VALUES (?, ?, ?, ?, ?)`,
         [usuario_id, fecha_inicio, total_ventas, cantidad_tickets, detalle_tipos],

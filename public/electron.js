@@ -131,24 +131,38 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
+    title: 'Sistema Tickets',
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.js')
     },
-    icon: path.join(__dirname, '../build/icon.png'),
+    icon: path.join(__dirname, '../public/favicon.ico'),
     titleBarStyle: 'default',
     show: false,
     webSecurity: false
   });
 
-  // Always load from development server for now
-  // In production, this would check if build exists
-  const startUrl = process.env.ELECTRON_START_URL || 'http://localhost:3000';
+  // Load the appropriate URL based on environment
+  const isDev = process.env.NODE_ENV === 'development' || process.env.ELECTRON_START_URL;
+  // Solo abrir DevTools si se solicita explícitamente
+  const showDevTools = process.env.SHOW_DEV_TOOLS === 'true' || process.argv.includes('--devtools');
   
-  mainWindow.loadURL(startUrl);
-  if (startUrl.includes('localhost')) {
-    mainWindow.webContents.openDevTools();
+  if (isDev) {
+    // Development mode - load from localhost
+    const startUrl = process.env.ELECTRON_START_URL || 'http://localhost:3000';
+    mainWindow.loadURL(startUrl);
+    // Solo abrir DevTools si se solicita explícitamente
+    if (showDevTools) {
+      mainWindow.webContents.openDevTools();
+    }
+  } else {
+    // Production mode - load from build folder
+    mainWindow.loadFile(path.join(__dirname, '../build/index.html'));
+    // Never open DevTools in production unless explicitly requested
+    if (showDevTools) {
+      mainWindow.webContents.openDevTools();
+    }
   }
 
   // Show window when ready to prevent visual flash
@@ -161,6 +175,18 @@ function createWindow() {
   // Handle window closed
   mainWindow.on('closed', () => {
     mainWindow = null;
+  });
+
+  // Add keyboard shortcut to toggle DevTools (F12 or Ctrl+Shift+I)
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    if ((input.key === 'F12') || 
+        (input.control && input.shift && input.key.toLowerCase() === 'i')) {
+      if (mainWindow.webContents.isDevToolsOpened()) {
+        mainWindow.webContents.closeDevTools();
+      } else {
+        mainWindow.webContents.openDevTools();
+      }
+    }
   });
 
 
@@ -231,6 +257,26 @@ ipcMain.handle('updateCashClosure', async (event, data) => {
     return await db.updateCashClosure(data);
   } catch (error) {
     console.error('Error updating cash closure:', error);
+    throw error;
+  }
+});
+
+// IPC handler para crear o actualizar cierre de caja (upsert)
+ipcMain.handle('upsertCashClosure', async (event, data) => {
+  try {
+    return await db.upsertCashClosure(data);
+  } catch (error) {
+    console.error('Error upserting cash closure:', error);
+    throw error;
+  }
+});
+
+// IPC handler para obtener cierre de caja por fecha y usuario
+ipcMain.handle('getCashClosureByDateAndUser', async (event, usuario_id, fecha_inicio) => {
+  try {
+    return await db.getCashClosureByDateAndUser(usuario_id, fecha_inicio);
+  } catch (error) {
+    console.error('Error getting cash closure by date and user:', error);
     throw error;
   }
 });
@@ -362,33 +408,46 @@ ipcMain.handle('deleteTicketType', async (event, id) => {
   }
 });
 
-ipcMain.handle('createSale', async (event, ticketTypeId, amount) => {
-  // Ahora acepta el código QR generado en el frontend
-  // ticketTypeId, amount, qrCode
+ipcMain.handle('createSale', async (event, ticketTypeId, amount, qrCode) => {
+  // Acepta el código QR generado en el frontend
   try {
+    console.log('=== DEBUG createSale ===');
+    console.log('Argumentos recibidos:', arguments.length);
+    console.log('arguments[0] (event):', typeof arguments[0]);
+    console.log('arguments[1] (ticketTypeId):', arguments[1], 'tipo:', typeof arguments[1]);
+    console.log('arguments[2] (amount):', arguments[2], 'tipo:', typeof arguments[2]);
+    console.log('arguments[3] (qrCode):', arguments[3], 'tipo:', typeof arguments[3]);
+    
     if (!currentUser) {
       throw new Error('No hay usuario autenticado');
     }
 
-    // El frontend envía 3 argumentos
-    const args = Array.from(arguments)[1];
-    let ticketTypeId, amount, qrCode;
-    if (Array.isArray(args)) {
-      // Si se recibe como array
-      [ticketTypeId, amount, qrCode] = args;
-    } else {
-      // Si se recibe como argumentos normales
-      ticketTypeId = arguments[1];
-      amount = arguments[2];
-      qrCode = arguments[3];
-    }
+    // Los argumentos se reciben directamente como parámetros
+    console.log('Parámetros recibidos:');
+    console.log('ticketTypeId:', ticketTypeId, 'tipo:', typeof ticketTypeId);
+    console.log('amount:', amount, 'tipo:', typeof amount);
+    console.log('qrCode:', qrCode, 'tipo:', typeof qrCode);
+
+    console.log('Validación de tipos:');
+    console.log('ticketTypeId es number?', typeof ticketTypeId === 'number', 'valor:', ticketTypeId);
+    console.log('amount es number?', typeof amount === 'number', 'valor:', amount);
+    console.log('qrCode es string?', typeof qrCode === 'string', 'valor:', qrCode);
+    
+    console.log('Validación de valores truthy:');
+    console.log('ticketTypeId truthy?', !!ticketTypeId);
+    console.log('amount truthy?', !!amount);
+    console.log('qrCode truthy?', !!qrCode);
 
     if (typeof ticketTypeId !== 'number' || typeof amount !== 'number' || typeof qrCode !== 'string') {
+      console.log('ERROR: Fallo validación de tipos');
       throw new Error('Datos de venta inválidos');
     }
     if (!ticketTypeId || !amount || !qrCode) {
+      console.log('ERROR: Fallo validación de valores');
       throw new Error('Datos de venta incompletos');
     }
+
+    console.log('Validación pasada, creando venta...');
 
     const result = await db.createSale(
       parseInt(currentUser.id, 10),
@@ -396,8 +455,14 @@ ipcMain.handle('createSale', async (event, ticketTypeId, amount) => {
       amount,
       qrCode
     );
+    console.log('Venta creada exitosamente:', result);
     return result;
   } catch (error) {
+    console.error('=== ERROR en createSale ===');
+    console.error('Tipo de error:', error.constructor.name);
+    console.error('Mensaje:', error.message);
+    console.error('Stack trace:', error.stack);
+    console.error('currentUser:', currentUser ? { id: currentUser.id, username: currentUser.username } : 'null');
     console.error('Error detallado en createSale:', error);
     throw error;
   }
@@ -412,6 +477,19 @@ ipcMain.handle('getDailySales', async () => {
     return await db.getDailySales(currentUser.id);
   } catch (error) {
     console.error('Error getting daily sales:', error);
+    throw error;
+  }
+});
+
+// Get daily sales summary for specific vendor
+ipcMain.handle('getVendedorDailySummary', async (event, fecha = null) => {
+  try {
+    if (!currentUser) {
+      throw new Error('No hay usuario autenticado');
+    }
+    return await db.getVendedorDailySummary(currentUser.id, fecha);
+  } catch (error) {
+    console.error('Error getting vendor daily summary:', error);
     throw error;
   }
 });

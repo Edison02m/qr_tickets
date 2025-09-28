@@ -10,6 +10,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getAllCashClosures: () => ipcRenderer.invoke('getAllCashClosures'),
   createCashClosure: (data) => ipcRenderer.invoke('createCashClosure', data),
   updateCashClosure: (data) => ipcRenderer.invoke('updateCashClosure', data),
+  upsertCashClosure: (data) => ipcRenderer.invoke('upsertCashClosure', data),
+  getCashClosureByDateAndUser: (usuario_id, fecha_inicio) => ipcRenderer.invoke('getCashClosureByDateAndUser', usuario_id, fecha_inicio),
   // Authentication
   login: (credentials) => ipcRenderer.invoke('login', credentials),
   logout: () => ipcRenderer.invoke('logout'),
@@ -28,6 +30,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Ahora acepta el código QR generado en el frontend
   createSale: (ticketTypeId, amount, qrCode) => ipcRenderer.invoke('createSale', ticketTypeId, amount, qrCode),
   getDailySales: () => ipcRenderer.invoke('getDailySales'),
+  getVendedorDailySummary: (fecha) => ipcRenderer.invoke('getVendedorDailySummary', fecha),
   // Printing system
   printTicket: (html) => ipcRenderer.invoke('print-ticket', html)
 

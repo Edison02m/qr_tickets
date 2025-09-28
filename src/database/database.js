@@ -1,7 +1,48 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
+const fs = require('fs');
 
-const dbPath = path.join(__dirname, '../../database.sqlite');
+// Función para obtener la ruta de la base de datos
+function getDatabasePath() {
+  const isDev = process.env.NODE_ENV === 'development';
+  
+  if (isDev) {
+    // En desarrollo, usar la ruta relativa
+    return path.join(__dirname, '../../database.sqlite');
+  } else {
+    // En producción, intentar diferentes ubicaciones
+    const possiblePaths = [
+      // Ruta en recursos de la aplicación
+      path.join(process.resourcesPath, 'database.sqlite'),
+      // Ruta en app.asar.unpacked
+      path.join(process.resourcesPath, 'app.asar.unpacked', 'database.sqlite'),
+      // Ruta en el directorio de la aplicación
+      path.join(process.resourcesPath, '..', 'database.sqlite'),
+      // Carpeta de datos del usuario
+      path.join(require('os').homedir(), 'AppData', 'Roaming', 'electronic-project', 'database.sqlite')
+    ];
+    
+    // Buscar el archivo en las diferentes ubicaciones
+    for (const dbPath of possiblePaths) {
+      if (fs.existsSync(dbPath)) {
+        console.log(`Database found at: ${dbPath}`);
+        return dbPath;
+      }
+    }
+    
+    // Si no se encuentra, crear en la carpeta de datos del usuario
+    const userDataPath = path.join(require('os').homedir(), 'AppData', 'Roaming', 'electronic-project');
+    if (!fs.existsSync(userDataPath)) {
+      fs.mkdirSync(userDataPath, { recursive: true });
+    }
+    
+    const userDbPath = path.join(userDataPath, 'database.sqlite');
+    console.log(`Creating new database at: ${userDbPath}`);
+    return userDbPath;
+  }
+}
+
+const dbPath = getDatabasePath();
 
 class Database {
   // Actualizar cierre de caja existente
@@ -35,7 +76,67 @@ class Database {
     });
   }
 
-  // Crear un nuevo cierre de caja
+  // Obtener cierre de caja por fecha y usuario
+  getCashClosureByDateAndUser(usuario_id, fecha_inicio) {
+    return new Promise((resolve, reject) => {
+      this.db.get(
+        `SELECT cc.*, u.nombre as usuario_nombre, u.usuario as usuario_usuario
+         FROM cierres_caja cc
+         JOIN usuarios u ON cc.usuario_id = u.id
+         WHERE cc.usuario_id = ? AND date(cc.fecha_inicio) = date(?)`,
+        [usuario_id, fecha_inicio],
+        (err, row) => {
+          if (err) reject(err);
+          else resolve(row || null);
+        }
+      );
+    });
+  }
+
+  // Crear o actualizar cierre de caja (upsert)
+  upsertCashClosure({ usuario_id, fecha_inicio, total_ventas, cantidad_tickets, detalle_tipos }) {
+    return new Promise(async (resolve, reject) => {
+      try {
+        // Verificar si ya existe un cierre para esta fecha y usuario
+        const existingClosure = await this.getCashClosureByDateAndUser(usuario_id, fecha_inicio);
+        
+        if (existingClosure) {
+          // Actualizar el cierre existente
+          this.db.run(
+            `UPDATE cierres_caja SET total_ventas = ?, cantidad_tickets = ?, detalle_tipos = ?, fecha_cierre = CURRENT_TIMESTAMP
+             WHERE usuario_id = ? AND date(fecha_inicio) = date(?)`,
+            [total_ventas, cantidad_tickets, detalle_tipos, usuario_id, fecha_inicio],
+            function(err) {
+              if (err) reject(err);
+              else resolve({ 
+                action: 'updated', 
+                id: existingClosure.id, 
+                changes: this.changes 
+              });
+            }
+          );
+        } else {
+          // Crear un nuevo cierre
+          this.db.run(
+            `INSERT INTO cierres_caja (usuario_id, fecha_inicio, total_ventas, cantidad_tickets, detalle_tipos)
+             VALUES (?, ?, ?, ?, ?)`,
+            [usuario_id, fecha_inicio, total_ventas, cantidad_tickets, detalle_tipos],
+            function(err) {
+              if (err) reject(err);
+              else resolve({ 
+                action: 'created', 
+                id: this.lastID 
+              });
+            }
+          );
+        }
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
+
+  // Crear un nuevo cierre de caja (mantenido para compatibilidad)
   createCashClosure({ usuario_id, fecha_inicio, total_ventas, cantidad_tickets, detalle_tipos }) {
     return new Promise((resolve, reject) => {
       this.db.run(
@@ -423,6 +524,47 @@ class Database {
         (err, rows) => {
           if (err) reject(err);
           else resolve(rows);
+        }
+      );
+    });
+  }
+
+  // Obtener resumen de ventas diarias de un vendedor específico
+  getVendedorDailySummary(userId, fecha = null) {
+    return new Promise((resolve, reject) => {
+      // Si no se proporciona fecha, usar la fecha actual
+      const fechaConsulta = fecha || new Date().toISOString().split('T')[0];
+      
+      this.db.all(
+        `SELECT 
+           tt.nombre as tipo_ticket,
+           COUNT(t.id) as cantidad_tickets,
+           SUM(t.precio) as total_tipo,
+           v.fecha_venta
+         FROM tickets t
+         JOIN ventas v ON t.venta_id = v.id
+         JOIN tipos_ticket tt ON t.tipo_ticket_id = tt.id
+         WHERE v.usuario_id = ? 
+           AND date(v.fecha_venta) = date(?)
+           AND v.anulada = 0
+         GROUP BY tt.id, tt.nombre
+         ORDER BY tt.nombre`,
+        [userId, fechaConsulta],
+        (err, rows) => {
+          if (err) {
+            reject(err);
+          } else {
+            // Calcular totales
+            const totalTickets = rows.reduce((sum, row) => sum + row.cantidad_tickets, 0);
+            const totalVentas = rows.reduce((sum, row) => sum + row.total_tipo, 0);
+            
+            resolve({
+              fecha: fechaConsulta,
+              total_tickets: totalTickets,
+              total_ventas: totalVentas,
+              detalle_por_tipo: rows
+            });
+          }
         }
       );
     });

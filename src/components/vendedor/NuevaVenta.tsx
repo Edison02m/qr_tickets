@@ -342,15 +342,14 @@ const NuevaVenta: React.FC = () => {
   };
 
   return (
-    <div className="w-full h-full flex flex-col items-center justify-center p-2 relative">
+    <div className="w-full h-full p-6 space-y-6">
       {/* Notificación tipo toast */}
       {notification.show && (
         <div 
-          className="fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg transition-opacity duration-300 flex items-center text-sm"
-          style={{ zIndex: 1000 }}
+          className="fixed top-4 right-4 bg-gradient-to-r from-[#457373] to-[#1D324D] text-white px-6 py-3 rounded-2xl shadow-2xl transition-all duration-300 flex items-center text-sm z-50"
         >
           <svg 
-            className="w-4 h-4 mr-2" 
+            className="w-5 h-5 mr-3" 
             fill="none" 
             strokeLinecap="round" 
             strokeLinejoin="round" 
@@ -364,59 +363,81 @@ const NuevaVenta: React.FC = () => {
         </div>
       )}
 
-      <div className="bg-white rounded-lg shadow p-3 w-full max-w-6xl mx-auto flex flex-col md:flex-row gap-4 min-h-[500px]">
+      <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/50 p-6 w-full max-w-6xl mx-auto flex flex-col lg:flex-row gap-6 min-h-[500px]">
         {/* Columna izquierda: selección de tickets */}
-        <div className="flex-1 border-r border-gray-200 pr-0 md:pr-4 pb-4 md:pb-0">
-          <h2 className="text-lg font-semibold text-gray-800 mb-2">
-            Nueva Venta de Ticket
-          </h2>
-          <h3 className="text-base font-medium text-gray-700 mb-2">
-            Seleccione los tickets:
-          </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-2 gap-2">
+        <div className="flex-1 lg:border-r border-[#DFE4E4]/50 pr-0 lg:pr-6 pb-6 lg:pb-0">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-6 h-0.5 bg-[#457373] rounded-full"></div>
+            <h2 className="text-lg font-light text-[#1D324D] tracking-tight">
+              Nueva Venta de Tickets
+            </h2>
+            <div className="w-6 h-0.5 bg-[#457373] rounded-full"></div>
+          </div>
+          <p className="text-[#7C4935]/70 text-xs font-light mb-4">
+            Selecciona la cantidad de tickets que deseas vender:
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
             {ticketTypes.map((ticket) => {
               const selectedCount = selectedTickets.find(t => t.ticket.id === ticket.id)?.cantidad || 0;
               return (
                 <div
                   key={ticket.id}
-                  className={`p-2 rounded-md border transition-colors text-sm ${
+                  className={`group relative overflow-hidden backdrop-blur-sm rounded-xl p-4 border transition-all duration-300 hover:shadow-lg hover:scale-[1.01] ${
                     selectedCount > 0
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-gray-200'
+                      ? 'bg-gradient-to-br from-[#457373]/10 to-[#1D324D]/10 border-[#457373]/30 shadow-md'
+                      : 'bg-white/50 border-[#DFE4E4]/50 shadow-sm'
                   }`}
                 >
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <span className="font-medium">{ticket.nombre}</span>
-                      <p className="text-xs text-gray-600">
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="flex-1">
+                      <h3 className="font-medium text-[#1D324D] text-base mb-0.5">{ticket.nombre}</h3>
+                      <p className="text-xs text-[#7C4935]/70">
                         ${ticket.precio.toFixed(2)} c/u
                       </p>
                     </div>
+                    {selectedCount > 0 && (
+                      <div className="w-5 h-5 bg-gradient-to-r from-[#457373] to-[#1D324D] rounded-full flex items-center justify-center">
+                        <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
                       <button
                         onClick={() => handleTicketQuantityChange(ticket, Math.max(0, selectedCount - 1))}
                         disabled={loading || selectedCount === 0}
-                        className="w-7 h-7 flex items-center justify-center rounded-full border border-gray-300 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed text-base"
+                        className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/70 border border-[#DFE4E4] text-[#1D324D] hover:bg-[#F1EADC]/50 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                       >
-                        -
+                        <svg className="w-4 h-4" stroke="currentColor" fill="none" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                        </svg>
                       </button>
-                      <span className="w-7 text-center font-semibold">
+                      <span className="w-8 text-center font-bold text-lg text-[#1D324D]">
                         {selectedCount}
                       </span>
                       <button
                         onClick={() => handleTicketQuantityChange(ticket, selectedCount + 1)}
                         disabled={loading}
-                        className="w-7 h-7 flex items-center justify-center rounded-full border border-gray-300 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed text-base"
+                        className="w-8 h-8 flex items-center justify-center rounded-lg bg-gradient-to-r from-[#457373] to-[#1D324D] text-white hover:from-[#1D324D] hover:to-[#457373] hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-md"
                       >
-                        +
+                        <svg className="w-4 h-4" stroke="currentColor" fill="none" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                        </svg>
                       </button>
                     </div>
+                    
+                    {selectedCount > 0 && (
+                      <div className="text-right">
+                        <p className="text-xs text-[#7C4935]/70">Subtotal</p>
+                        <p className="font-bold text-sm text-[#457373]">
+                          ${(ticket.precio * selectedCount).toFixed(2)}
+                        </p>
+                      </div>
+                    )}
                   </div>
-                  {selectedCount > 0 && (
-                    <div className="mt-1 text-right text-xs text-gray-600">
-                      Subtotal: ${(ticket.precio * selectedCount).toFixed(2)}
-                    </div>
-                  )}
                 </div>
               );
             })}
@@ -424,46 +445,80 @@ const NuevaVenta: React.FC = () => {
         </div>
 
         {/* Columna derecha: totales y confirmación */}
-  <div className="w-full md:w-80 flex-shrink-0 flex flex-col items-stretch pl-0 md:pl-4">
+        <div className="w-full lg:w-80 flex-shrink-0 flex flex-col pl-0 lg:pl-6">
           {error && (
-            <div className="mb-2 p-2 bg-red-100 text-red-700 rounded-lg text-sm">
-              {error}
+            <div className="mb-4 p-3 bg-gradient-to-r from-red-50 to-red-100 border-l-4 border-red-400 rounded-r-xl">
+              <div className="flex items-center">
+                <svg className="w-4 h-4 text-red-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p className="text-xs text-red-700">{error}</p>
+              </div>
             </div>
           )}
-          <div className="flex-1 flex flex-col justify-start">
+          
+          <div className="flex-1 flex flex-col">
             {totalVenta === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-gray-400 py-12">
-                <svg width="64" height="64" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="mb-4 opacity-60">
-                  <rect x="4" y="7" width="16" height="10" rx="3" stroke="#cbd5e1" strokeWidth="1.5"/>
-                  <path d="M8 11h8" stroke="#cbd5e1" strokeWidth="1.5" strokeLinecap="round"/>
-                  <path d="M8 15h4" stroke="#cbd5e1" strokeWidth="1.5" strokeLinecap="round"/>
-                </svg>
-                <span className="text-base font-medium text-gray-500 text-center">Selecciona tickets a la izquierda<br />para procesar una venta</span>
+              <div className="flex flex-col items-center justify-center h-full bg-gradient-to-br from-[#F1EADC]/20 to-[#DFE4E4]/20 rounded-xl border border-[#DFE4E4]/30 py-12">
+                <div className="w-16 h-16 bg-gradient-to-br from-[#7C4935]/20 to-[#457373]/20 rounded-full flex items-center justify-center mb-4">
+                  <svg className="w-8 h-8 text-[#7C4935]/60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                </div>
+                <h3 className="text-base font-medium text-[#1D324D] mb-1">Selecciona Tickets</h3>
+                <p className="text-xs text-[#7C4935]/70 text-center leading-relaxed">
+                  Elige los tickets para procesar una venta
+                </p>
               </div>
             ) : (
-              <div className="pt-2 border-t">
-                {/* Resumen de tickets seleccionados */}
+              <div className="bg-gradient-to-br from-[#F1EADC]/20 via-white to-[#DFE4E4]/20 backdrop-blur-sm rounded-xl p-4 border border-[#DFE4E4]/50 shadow-lg">
+                {/* Header del resumen */}
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-4 h-0.5 bg-[#457373] rounded-full"></div>
+                  <h4 className="text-base font-medium text-[#1D324D]">Resumen</h4>
+                  <div className="w-4 h-0.5 bg-[#457373] rounded-full"></div>
+                </div>
+                
+                {/* Lista de tickets seleccionados */}
                 <div className="mb-4">
-                  <h4 className="text-sm font-semibold text-gray-700 mb-2">Tickets seleccionados:</h4>
-                  <ul className="space-y-1">
+                  <ul className="space-y-2">
                     {selectedTickets.map(({ ticket, cantidad }) => (
-                      <li key={ticket.id} className="flex justify-between items-center text-sm text-gray-800">
-                        <span>{cantidad} x {ticket.nombre}</span>
-                        <span className="text-gray-500">${(ticket.precio * cantidad).toFixed(2)}</span>
+                      <li key={ticket.id} className="flex justify-between items-center p-2 bg-white/50 rounded-lg border border-[#DFE4E4]/30">
+                        <div>
+                          <span className="text-xs font-medium text-[#1D324D]">{cantidad} × {ticket.nombre}</span>
+                          <p className="text-xs text-[#7C4935]/70">${ticket.precio.toFixed(2)} c/u</p>
+                        </div>
+                        <span className="font-semibold text-sm text-[#457373]">${(ticket.precio * cantidad).toFixed(2)}</span>
                       </li>
                     ))}
                   </ul>
                 </div>
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-base font-medium">Total:</span>
-                  <span className="text-xl font-bold">${totalVenta.toFixed(2)}</span>
+                
+                {/* Total */}
+                <div className="border-t border-[#DFE4E4]/30 pt-3 mb-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-base font-medium text-[#1D324D]">Total:</span>
+                    <span className="text-xl font-bold text-[#1D324D]">${totalVenta.toFixed(2)}</span>
+                  </div>
                 </div>
+                
+                {/* Botón de confirmar venta */}
                 <button
                   onClick={handleVenta}
                   disabled={loading || totalVenta === 0}
-                  className="w-full bg-blue-600 text-white py-2 px-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-base font-semibold mt-2"
+                  className="w-full bg-gradient-to-r from-[#1D324D] to-[#457373] text-white py-3 px-4 rounded-xl hover:from-[#457373] hover:to-[#1D324D] focus:outline-none focus:ring-2 focus:ring-[#457373] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 hover:scale-[1.01] shadow-lg font-medium text-sm"
                 >
-                  {loading ? 'Procesando...' : 'Confirmar Venta'}
+                  {loading ? (
+                    <div className="flex items-center justify-center">
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Procesando...
+                    </div>
+                  ) : (
+                    'Confirmar Venta'
+                  )}
                 </button>
               </div>
             )}

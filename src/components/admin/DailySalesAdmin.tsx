@@ -158,166 +158,239 @@ const DailySalesAdmin: React.FC = () => {
   const totalPages = Math.max(1, Math.ceil(totalFiltered.length / pageSize));
 
   return (
-    <div className="p-6">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
-        <h1 className="text-2xl font-bold text-gray-800">Ventas</h1>
-        <div className="flex flex-wrap gap-2 items-center bg-white/80 rounded-xl shadow px-4 py-3 border border-gray-200">
-          <div className="flex items-center gap-2">
-            <span className="text-gray-500 text-sm font-medium flex items-center">
-              <svg className="w-4 h-4 mr-1 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+    <div className="space-y-8">
+      {/* Header */}
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <div className="w-8 h-0.5 bg-[#457373] mb-3 rounded-full"></div>
+          <h1 className="text-xl font-light text-[#1D324D] tracking-tight">Reportes de Ventas</h1>
+          <p className="text-[#7C4935]/70 text-xs font-light mt-1">Consulta y gestiona las ventas diarias</p>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/50 p-6">
+        <div className="flex flex-wrap gap-6 items-center">
+          <div className="flex items-center gap-3">
+            <label className="text-sm font-medium text-[#1D324D] flex items-center">
+              <svg className="w-4 h-4 mr-2 text-[#457373]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
               Fecha
-            </span>
+            </label>
             <input
               type="date"
               value={filterDate}
               onChange={e => setFilterDate(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 text-sm bg-white shadow-sm"
-              style={{ minWidth: 120 }}
+              className="px-4 py-2 bg-[#F1EADC]/30 border border-[#DFE4E4] rounded-xl text-[#1D324D] focus:outline-none focus:ring-2 focus:ring-[#457373] focus:border-transparent transition-all duration-300 text-sm"
             />
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-gray-500 text-sm font-medium flex items-center">
-              <svg className="w-4 h-4 mr-1 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+          <div className="flex items-center gap-3">
+            <label className="text-sm font-medium text-[#1D324D] flex items-center">
+              <svg className="w-4 h-4 mr-2 text-[#457373]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
               Estado
-            </span>
+            </label>
             <select
               value={filterEstado}
               onChange={e => setFilterEstado(e.target.value as 'todos'|'activa'|'anulada')}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-200 text-sm bg-white shadow-sm"
-              style={{ minWidth: 100 }}
+              className="px-4 py-2 bg-[#F1EADC]/30 border border-[#DFE4E4] rounded-xl text-[#1D324D] focus:outline-none focus:ring-2 focus:ring-[#457373] focus:border-transparent transition-all duration-300 text-sm"
             >
               <option value="todos">Todos</option>
               <option value="activa">Activa</option>
               <option value="anulada">Anulada</option>
             </select>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-gray-500 text-sm font-medium flex items-center">
-              <svg className="w-4 h-4 mr-1 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h8" /></svg>
-              Código Ticket
-            </span>
+          <div className="flex items-center gap-3">
+            <label className="text-sm font-medium text-[#1D324D] flex items-center">
+              <svg className="w-4 h-4 mr-2 text-[#457373]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              Código
+            </label>
             <input
               type="text"
               value={filterCodigo}
               onChange={e => setFilterCodigo(e.target.value)}
               placeholder="Buscar código..."
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-200 text-sm bg-white shadow-sm"
-              style={{ minWidth: 120 }}
+              className="px-4 py-2 bg-[#F1EADC]/30 border border-[#DFE4E4] rounded-xl text-[#1D324D] placeholder-[#7C4935]/60 focus:outline-none focus:ring-2 focus:ring-[#457373] focus:border-transparent transition-all duration-300 text-sm"
             />
           </div>
         </div>
       </div>
-      <div className="overflow-x-auto bg-white rounded-lg shadow">
+      {/* Table */}
+      <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/50 overflow-hidden">
         {loading ? (
-          <div className="text-gray-500 p-6">Cargando ventas...</div>
-        ) : error ? (
-          <div className="text-red-500 p-6">{error}</div>
-        ) : getSortedVentas().length === 0 ? (
-          <div className="text-gray-500 p-6">No hay ventas para los filtros seleccionados.</div>
-        ) : (
-          <>
-          <table className="min-w-full text-sm">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-2 text-left cursor-pointer select-none group" onClick={() => handleSort('fecha')}>
-                  <span className="flex items-center gap-1">Fecha
-                    {sortBy === 'fecha' && (
-                      <svg className={`w-3 h-3 ml-1 ${sortDir === 'asc' ? '' : 'rotate-180'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" /></svg>
-                    )}
-                  </span>
-                </th>
-                <th className="px-4 py-2 text-left cursor-pointer select-none group" onClick={() => handleSort('usuario')}>
-                  <span className="flex items-center gap-1">Usuario
-                    {sortBy === 'usuario' && (
-                      <svg className={`w-3 h-3 ml-1 ${sortDir === 'asc' ? '' : 'rotate-180'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" /></svg>
-                    )}
-                  </span>
-                </th>
-                <th className="px-4 py-2 text-left">Tickets</th>
-                <th className="px-4 py-2 text-left cursor-pointer select-none group" onClick={() => handleSort('total')}>
-                  <span className="flex items-center gap-1">Total
-                    {sortBy === 'total' && (
-                      <svg className={`w-3 h-3 ml-1 ${sortDir === 'asc' ? '' : 'rotate-180'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" /></svg>
-                    )}
-                  </span>
-                </th>
-                <th className="px-4 py-2 text-left cursor-pointer select-none group" onClick={() => handleSort('estado')}>
-                  <span className="flex items-center gap-1">Estado
-                    {sortBy === 'estado' && (
-                      <svg className={`w-3 h-3 ml-1 ${sortDir === 'asc' ? '' : 'rotate-180'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" /></svg>
-                    )}
-                  </span>
-                </th>
-                <th className="px-4 py-2 text-left">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {getSortedVentas().map((venta) => (
-                <tr key={venta.venta_id} className="hover:bg-gray-50 transition">
-                  <td className="px-4 py-2 whitespace-nowrap text-xs text-gray-700">{new Date(venta.fecha_venta).toLocaleString()}</td>
-                  <td className="px-4 py-2 whitespace-nowrap text-xs text-gray-900 font-semibold">{venta.vendedor_usuario}</td>
-                  <td className="px-4 py-2 whitespace-nowrap text-xs">
-                    <ul className="space-y-1">
-                      {venta.tickets.map((t) => (
-                        <li key={t.ticket_id} className="flex items-center space-x-2">
-                          <span className="font-mono text-xs bg-gray-100 px-2 py-1 rounded border border-gray-200">{t.codigo_qr}</span>
-                          <span className="text-gray-600 text-xs bg-gray-50 px-2 py-1 rounded">{t.tipo_ticket}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </td>
-                  <td className="px-4 py-2 whitespace-nowrap text-xs font-bold text-gray-900">${venta.total.toFixed(2)}</td>
-                  <td className="px-4 py-2 whitespace-nowrap text-xs">
-                    {venta.anulada ? (
-                      <span className="px-2 py-1 rounded-full bg-red-100 text-red-800 text-xs font-semibold">Anulada</span>
-                    ) : (
-                      <span className="px-2 py-1 rounded-full bg-green-100 text-green-800 text-xs font-semibold">Activa</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-2 whitespace-nowrap text-xs">
-                    {!venta.anulada && (
-                      <button
-                        className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-xs flex items-center space-x-1 disabled:opacity-50"
-                        onClick={() => handleAnular(venta.venta_id)}
-                        disabled={anulando === venta.venta_id}
-                        title="Anular venta"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
-                        {anulando === venta.venta_id ? 'Anulando...' : 'Anular'}
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {/* Paginación mejorada */}
-          <div className="flex justify-center items-center gap-4 mt-6">
-            <button
-              className={`flex items-center gap-1 px-4 py-2 rounded-lg border transition-all shadow-sm font-semibold text-sm
-                ${currentPage === 1 ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed' : 'bg-white text-blue-600 border-blue-300 hover:bg-blue-50 hover:shadow-md'}`}
-              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-              Anterior
-            </button>
-            <span className="px-4 py-2 rounded-lg bg-gray-50 border border-gray-200 text-gray-700 font-bold text-base shadow-sm select-none">
-              Página {currentPage} de {totalPages}
-            </span>
-            <button
-              className={`flex items-center gap-1 px-4 py-2 rounded-lg border transition-all shadow-sm font-semibold text-sm
-                ${(currentPage >= totalPages) ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed' : 'bg-white text-blue-600 border-blue-300 hover:bg-blue-50 hover:shadow-md'}`}
-              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-              disabled={currentPage >= totalPages}
-            >
-              Siguiente
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-            </button>
+          <div className="text-[#7C4935] p-8 text-center">
+            <div className="flex items-center justify-center">
+              <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-[#457373]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Cargando ventas...
+            </div>
           </div>
-          </>
+        ) : error ? (
+          <div className="text-red-600 p-8 text-center bg-red-50 rounded-3xl border border-red-200">
+            <svg className="w-6 h-6 mx-auto mb-2 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            {error}
+          </div>
+        ) : getSortedVentas().length === 0 ? (
+          <div className="text-[#7C4935]/80 p-8 text-center">
+            <svg className="w-8 h-8 mx-auto mb-3 text-[#457373]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            No hay ventas para los filtros seleccionados
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full">
+              <thead className="bg-gradient-to-r from-[#F1EADC] to-[#DFE4E4]">
+                <tr>
+                  <th className="px-6 py-4 text-left cursor-pointer select-none group" onClick={() => handleSort('fecha')}>
+                    <span className="flex items-center gap-2 text-xs font-medium text-[#1D324D] uppercase tracking-wider">
+                      Fecha
+                      {sortBy === 'fecha' && (
+                        <svg className={`w-4 h-4 text-[#457373] ${sortDir === 'asc' ? '' : 'rotate-180'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                        </svg>
+                      )}
+                    </span>
+                  </th>
+                  <th className="px-6 py-4 text-left cursor-pointer select-none group" onClick={() => handleSort('usuario')}>
+                    <span className="flex items-center gap-2 text-xs font-medium text-[#1D324D] uppercase tracking-wider">
+                      Usuario
+                      {sortBy === 'usuario' && (
+                        <svg className={`w-4 h-4 text-[#457373] ${sortDir === 'asc' ? '' : 'rotate-180'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                        </svg>
+                      )}
+                    </span>
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-[#1D324D] uppercase tracking-wider">Tickets</th>
+                  <th className="px-6 py-4 text-left cursor-pointer select-none group" onClick={() => handleSort('total')}>
+                    <span className="flex items-center gap-2 text-xs font-medium text-[#1D324D] uppercase tracking-wider">
+                      Total
+                      {sortBy === 'total' && (
+                        <svg className={`w-4 h-4 text-[#457373] ${sortDir === 'asc' ? '' : 'rotate-180'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                        </svg>
+                      )}
+                    </span>
+                  </th>
+                  <th className="px-6 py-4 text-left cursor-pointer select-none group" onClick={() => handleSort('estado')}>
+                    <span className="flex items-center gap-2 text-xs font-medium text-[#1D324D] uppercase tracking-wider">
+                      Estado
+                      {sortBy === 'estado' && (
+                        <svg className={`w-4 h-4 text-[#457373] ${sortDir === 'asc' ? '' : 'rotate-180'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                        </svg>
+                      )}
+                    </span>
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-[#1D324D] uppercase tracking-wider">Acciones</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#DFE4E4]/30">
+                {getSortedVentas().map((venta) => (
+                  <tr key={venta.venta_id} className="hover:bg-[#F1EADC]/20 transition-colors duration-200">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-[#1D324D]">{new Date(venta.fecha_venta).toLocaleDateString()}</div>
+                      <div className="text-xs text-[#7C4935]/80">{new Date(venta.fecha_venta).toLocaleTimeString()}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-[#1D324D]">{venta.vendedor_usuario}</div>
+                      <div className="text-xs text-[#7C4935]/80">{venta.vendedor}</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="space-y-2">
+                        {venta.tickets.map((t) => (
+                          <div key={t.ticket_id} className="flex items-center space-x-2">
+                            <span className="font-mono text-xs bg-[#F1EADC]/50 text-[#1D324D] px-2 py-1 rounded-lg border border-[#DFE4E4]/50">
+                              {t.codigo_qr}
+                            </span>
+                            <span className="text-xs text-[#7C4935] bg-[#DFE4E4]/30 px-2 py-1 rounded-lg">
+                              {t.tipo_ticket}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-semibold text-[#457373]">${venta.total.toFixed(2)}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {venta.anulada ? (
+                        <span className="px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">
+                          Anulada
+                        </span>
+                      ) : (
+                        <span className="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                          Activa
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {!venta.anulada && (
+                        <button
+                          className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-xl transition-all duration-200 disabled:opacity-50"
+                          onClick={() => handleAnular(venta.venta_id)}
+                          disabled={anulando === venta.venta_id}
+                          title="Anular venta"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                          </svg>
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
+
+      {/* Paginación */}
+      {!loading && !error && getSortedVentas().length > 0 && (
+        <div className="flex justify-center items-center gap-4 mt-6">
+          <button
+            className={`flex items-center gap-2 px-6 py-3 rounded-2xl border transition-all duration-300 font-medium text-sm ${
+              currentPage === 1 
+                ? 'bg-[#DFE4E4]/30 text-[#7C4935]/50 border-[#DFE4E4]/50 cursor-not-allowed' 
+                : 'bg-white/80 text-[#1D324D] border-[#DFE4E4] hover:bg-[#F1EADC]/50 hover:scale-[1.02] shadow-lg'
+            }`}
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            Anterior
+          </button>
+          <div className="px-6 py-3 rounded-2xl bg-gradient-to-r from-[#1D324D] to-[#457373] text-white font-bold text-sm shadow-lg">
+            Página {currentPage} de {totalPages}
+          </div>
+          <button
+            className={`flex items-center gap-2 px-6 py-3 rounded-2xl border transition-all duration-300 font-medium text-sm ${
+              currentPage >= totalPages 
+                ? 'bg-[#DFE4E4]/30 text-[#7C4935]/50 border-[#DFE4E4]/50 cursor-not-allowed' 
+                : 'bg-white/80 text-[#1D324D] border-[#DFE4E4] hover:bg-[#F1EADC]/50 hover:scale-[1.02] shadow-lg'
+            }`}
+            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+            disabled={currentPage >= totalPages}
+          >
+            Siguiente
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        </div>
+      )}
     </div>
   );
 };

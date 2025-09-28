@@ -1,13 +1,15 @@
 {
-  "name": "electronic-project",
+  "name": "sistema-tickets",
   "version": "0.1.0",
-  "description": "Aplicación de escritorio para control y monitoreo electrónico",
+  "description": "Sistema de gestión y control de tickets",
   "main": "public/electron.js",
   "homepage": "./",
+  "author": "Edison",
   "private": true,
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
+    "@heroicons/react": "^2.2.0",
     "@mui/icons-material": "^7.3.2",
     "@mui/material": "^7.3.2",
     "@testing-library/dom": "^10.4.1",
@@ -33,14 +35,15 @@
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "electron-dev": "concurrently \"set BROWSER=none&& npm start\" \"wait-on http://localhost:3000 && set ELECTRON_START_URL=http://localhost:3000&& electron .\"",
+    "electron-dev-debug": "concurrently \"set BROWSER=none&& npm start\" \"wait-on http://localhost:3000 && set ELECTRON_START_URL=http://localhost:3000&& set SHOW_DEV_TOOLS=true&& electron .\"",
     "electron-pack": "npm run build && electron-builder",
     "dist": "npm run build && electron-builder",
     "pack": "npm run build && electron-builder --dir",
     "postinstall": "electron-builder install-app-deps"
   },
   "build": {
-    "appId": "com.electronics.project",
-    "productName": "Proyecto Electrónica",
+    "appId": "com.sistema.tickets",
+    "productName": "Sistema Tickets",
     "directories": {
       "output": "dist"
     },
@@ -48,14 +51,26 @@
       "build/**/*",
       "public/electron.js",
       "public/preload.js",
+      "src/**/*",
+      "database.sqlite",
       "node_modules/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "database.sqlite",
+        "to": "database.sqlite"
+      }
+    ],
+    "asarUnpack": [
+      "src/**/*",
+      "database.sqlite"
     ],
     "mac": {
       "category": "public.app-category.utilities"
     },
     "win": {
       "target": "nsis",
-      "icon": "build/icon.ico"
+      "icon": "public/favicon.ico"
     },
     "linux": {
       "target": "AppImage"

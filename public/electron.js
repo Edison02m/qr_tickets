@@ -59,6 +59,13 @@ function setAdminMenu() {
             `);
           }
         }},
+        { label: 'Puertas', click: () => {
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.executeJavaScript(`
+              window.dispatchEvent(new CustomEvent('menu-action', { detail: 'puertas' }));
+            `);
+          }
+        }},
         { type: 'separator' },
         { label: 'Cerrar Sesión', click: () => {
           if (mainWindow && !mainWindow.isDestroyed()) {
@@ -408,62 +415,30 @@ ipcMain.handle('deleteTicketType', async (event, id) => {
   }
 });
 
-ipcMain.handle('createSale', async (event, ticketTypeId, amount, qrCode) => {
-  // Acepta el código QR generado en el frontend
+ipcMain.handle('createSale', async (event, ticketTypeId, amount, qrCode, puertaCodigo) => {
+  // Acepta el código QR y puerta_codigo generado en el frontend
   try {
-    console.log('=== DEBUG createSale ===');
-    console.log('Argumentos recibidos:', arguments.length);
-    console.log('arguments[0] (event):', typeof arguments[0]);
-    console.log('arguments[1] (ticketTypeId):', arguments[1], 'tipo:', typeof arguments[1]);
-    console.log('arguments[2] (amount):', arguments[2], 'tipo:', typeof arguments[2]);
-    console.log('arguments[3] (qrCode):', arguments[3], 'tipo:', typeof arguments[3]);
-    
     if (!currentUser) {
       throw new Error('No hay usuario autenticado');
     }
 
-    // Los argumentos se reciben directamente como parámetros
-    console.log('Parámetros recibidos:');
-    console.log('ticketTypeId:', ticketTypeId, 'tipo:', typeof ticketTypeId);
-    console.log('amount:', amount, 'tipo:', typeof amount);
-    console.log('qrCode:', qrCode, 'tipo:', typeof qrCode);
-
-    console.log('Validación de tipos:');
-    console.log('ticketTypeId es number?', typeof ticketTypeId === 'number', 'valor:', ticketTypeId);
-    console.log('amount es number?', typeof amount === 'number', 'valor:', amount);
-    console.log('qrCode es string?', typeof qrCode === 'string', 'valor:', qrCode);
-    
-    console.log('Validación de valores truthy:');
-    console.log('ticketTypeId truthy?', !!ticketTypeId);
-    console.log('amount truthy?', !!amount);
-    console.log('qrCode truthy?', !!qrCode);
-
     if (typeof ticketTypeId !== 'number' || typeof amount !== 'number' || typeof qrCode !== 'string') {
-      console.log('ERROR: Fallo validación de tipos');
       throw new Error('Datos de venta inválidos');
     }
     if (!ticketTypeId || !amount || !qrCode) {
-      console.log('ERROR: Fallo validación de valores');
       throw new Error('Datos de venta incompletos');
     }
-
-    console.log('Validación pasada, creando venta...');
 
     const result = await db.createSale(
       parseInt(currentUser.id, 10),
       ticketTypeId,
       amount,
-      qrCode
+      qrCode,
+      puertaCodigo || null
     );
-    console.log('Venta creada exitosamente:', result);
     return result;
   } catch (error) {
-    console.error('=== ERROR en createSale ===');
-    console.error('Tipo de error:', error.constructor.name);
-    console.error('Mensaje:', error.message);
-    console.error('Stack trace:', error.stack);
-    console.error('currentUser:', currentUser ? { id: currentUser.id, username: currentUser.username } : 'null');
-    console.error('Error detallado en createSale:', error);
+    console.error('Error en createSale:', error);
     throw error;
   }
 });
@@ -515,7 +490,7 @@ ipcMain.handle('print-ticket', async (event, html) => {
     try {
       let ticketsImpresos = false;
       
-      // Crear una ventana visible para la impresión
+      // Crear una ventana visible para la impresión sin botones de cerrar ni menú
       const printWindow = new BrowserWindow({
         width: 400,
         height: 600,
@@ -524,10 +499,18 @@ ipcMain.handle('print-ticket', async (event, html) => {
           contextIsolation: true,
           preload: path.join(__dirname, 'preload.js')
         },
-        title: 'Vista previa de impresión'
+        title: 'Vista previa de impresión',
+        closable: false,     // Deshabilitar el botón X de cerrar
+        minimizable: false,  // Deshabilitar minimizar
+        maximizable: false,  // Deshabilitar maximizar
+        autoHideMenuBar: true, // Ocultar barra de menú automáticamente
+        skipTaskbar: true    // No mostrar en la barra de tareas
       });
 
-      // Agregar solo los botones de impresión y cerrar, sin advertencia
+      // Remover completamente el menú de la ventana
+      printWindow.setMenu(null);
+
+      // Agregar solo el botón de impresión con diseño sutil y estético
       const htmlWithButtons = `
         ${html}
         <style>
@@ -536,28 +519,83 @@ ipcMain.handle('print-ticket', async (event, html) => {
             bottom: 0;
             left: 0;
             right: 0;
-            padding: 15px;
-            background: white;
-            border-top: 1px solid #ccc;
+            padding: 24px;
+            background: linear-gradient(to top, rgba(255,255,255,0.95), rgba(255,255,255,0.8));
+            backdrop-filter: blur(10px);
+            border-top: 1px solid rgba(29, 50, 77, 0.08);
             display: flex;
             justify-content: center;
-            gap: 10px;
+            align-items: center;
             z-index: 9999;
           }
           .print-button {
-            padding: 8px 16px;
+            position: relative;
+            padding: 12px 40px;
             border: none;
-            border-radius: 4px;
+            border-radius: 12px;
             cursor: pointer;
             font-size: 14px;
-          }
-          .print-now {
-            background: #2563eb;
+            font-weight: 500;
+            letter-spacing: 0.3px;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            background: linear-gradient(135deg, #457373 0%, #1D324D 100%);
             color: white;
+            box-shadow: 0 2px 8px rgba(69, 115, 115, 0.15);
+            overflow: hidden;
           }
-          .print-cancel {
-            background: #dc2626;
-            color: white;
+          .print-button::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.15);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+          }
+          .print-button:hover::before {
+            width: 300px;
+            height: 300px;
+          }
+          .print-button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 16px rgba(69, 115, 115, 0.25);
+          }
+          .print-button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 8px rgba(69, 115, 115, 0.2);
+          }
+          .print-icon {
+            position: relative;
+            z-index: 1;
+            width: 18px;
+            height: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          }
+          .print-text {
+            position: relative;
+            z-index: 1;
+          }
+          @keyframes fadeIn {
+            from {
+              opacity: 0;
+              transform: translateY(10px);
+            }
+            to {
+              opacity: 1;
+              transform: translateY(0);
+            }
+          }
+          .print-buttons {
+            animation: fadeIn 0.3s ease-out;
           }
           @media print {
             .print-buttons {
@@ -566,53 +604,43 @@ ipcMain.handle('print-ticket', async (event, html) => {
           }
         </style>
         <div class="print-buttons">
-          <button class="print-button print-now" onclick="window.print()">Imprimir Tickets</button>
-          <button class="print-button print-cancel" onclick="if(window.ticketsImpresos || confirm('¿Está seguro que desea cerrar sin imprimir? Los tickets deberán ser generados nuevamente.')) window.close()">Cerrar</button>
+          <button class="print-button" onclick="window.print()">
+            <span class="print-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 6 2 18 2 18 9"></polyline>
+                <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+                <rect x="6" y="14" width="12" height="8"></rect>
+              </svg>
+            </span>
+            <span class="print-text">Imprimir Tickets</span>
+          </button>
         </div>
       `;
 
       printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlWithButtons)}`);
 
-      // Manejar cuando la ventana se cierre
-      printWindow.on('close', (e) => {
-        if (!ticketsImpresos) {
-          const choice = require('electron').dialog.showMessageBoxSync(printWindow, {
-            type: 'warning',
-            buttons: ['Cerrar sin imprimir', 'Cancelar'],
-            title: 'Confirmar cierre',
-            message: '¿Está seguro que desea cerrar sin imprimir?',
-            detail: 'Si cierra esta ventana sin imprimir, necesitará generar los tickets nuevamente.',
-            defaultId: 1,
-            cancelId: 1
-          });
-
-          if (choice === 1) {
-            e.preventDefault();
-            return;
-          }
-        }
-      });
-
+      // La ventana se cierra automáticamente después de imprimir
       printWindow.on('closed', () => {
         resolve({ success: ticketsImpresos });
       });
 
-      // Agregar accesos directos de teclado y manejo de impresión
+      // Agregar manejo de impresión y cierre automático
       printWindow.webContents.on('did-finish-load', () => {
         printWindow.webContents.executeJavaScript(`
           window.ticketsImpresos = false;
           window.addEventListener('afterprint', () => {
             window.ticketsImpresos = true;
+            // Cerrar ventana automáticamente después de imprimir
+            setTimeout(() => {
+              window.close();
+            }, 500);
           });
+          
+          // Atajo de teclado Ctrl+P para imprimir
           document.addEventListener('keydown', (e) => {
             if (e.ctrlKey && e.key === 'p') {
               e.preventDefault();
               window.print();
-            }
-            if (e.key === 'Escape') {
-              if (window.ticketsImpresos || confirm('¿Está seguro que desea cerrar sin imprimir? Los tickets deberán ser generados nuevamente.')) {
-                window.close();
-              }
             }
           });
         `);
@@ -622,6 +650,64 @@ ipcMain.handle('print-ticket', async (event, html) => {
       reject(error);
     }
   });
+});
+
+// ============================================
+// HANDLERS IPC PARA PUERTAS
+// ============================================
+
+ipcMain.handle('getPuertas', async () => {
+  try {
+    return await db.getPuertas();
+  } catch (error) {
+    console.error('Error getting puertas:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('getActivePuertas', async () => {
+  try {
+    return await db.getActivePuertas();
+  } catch (error) {
+    console.error('Error getting active puertas:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('createPuerta', async (event, data) => {
+  try {
+    return await db.createPuerta(data);
+  } catch (error) {
+    console.error('Error creating puerta:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('updatePuerta', async (event, data) => {
+  try {
+    return await db.updatePuerta(data);
+  } catch (error) {
+    console.error('Error updating puerta:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('togglePuertaStatus', async (event, id, active) => {
+  try {
+    return await db.togglePuertaStatus(id, active);
+  } catch (error) {
+    console.error('Error toggling puerta status:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('deletePuerta', async (event, id) => {
+  try {
+    return await db.deletePuerta(id);
+  } catch (error) {
+    console.error('Error deleting puerta:', error);
+    throw error;
+  }
 });
 
 app.on('before-quit', () => {

@@ -7,6 +7,9 @@ interface TicketType {
   nombre: string;
   precio: number;
   activo: boolean;
+  puerta_id?: number;
+  puerta_nombre?: string;
+  puerta_codigo?: string;
 }
 
 interface TicketVenta {
@@ -74,13 +77,15 @@ const NuevaVenta: React.FC = () => {
   };
 
 
-  // Generar el código QR en el formato solicitado
-  const generarCodigoQR = (tipoTicketNombre: string) => {
+  // Generar el código QR en el formato solicitado: ticket-nombreticket-puerta-random-random
+  const generarCodigoQR = (tipoTicketNombre: string, puertaCodigo: string) => {
     // Limpiar el nombre del tipo de ticket para el código
     const tipo = tipoTicketNombre.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+    // Limpiar el código de puerta
+    const puerta = (puertaCodigo || 'gen').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
     const random1 = Math.random().toString(36).substring(2, 10);
     const random2 = Math.random().toString(36).substring(2, 8);
-    return `ticket-${tipo}-${random1}-${random2}`;
+    return `ticket-${tipo}-${puerta}-${random1}-${random2}`;
   };
 
   // Generar el QR code SVG para impresión
@@ -97,6 +102,12 @@ const NuevaVenta: React.FC = () => {
   const generarTicketHTML = (ticketVenta: TicketVenta) => {
     const ticketType = ticketTypes.find(t => t.id === ticketVenta.ticketTypeId);
     const qrCodeHTML = generarQRCodeSVG(ticketVenta.qrCode);
+    
+    // Información de la puerta (solo nombre, sin código, sin iconos)
+    const puertaInfo = ticketType?.puerta_nombre 
+      ? `<p style="font-weight: bold;">Puerta: ${ticketType.puerta_nombre}</p>`
+      : '<p>Acceso general</p>';
+    
     return `
       <div class="ticket">
         <div class="ticket-header">
@@ -107,13 +118,13 @@ const NuevaVenta: React.FC = () => {
         </div>
         <div class="ticket-info">
           <p><strong>${ticketType?.nombre || ''}</strong></p>
+          ${puertaInfo}
           <p>Fecha: ${new Date(ticketVenta.fecha).toLocaleString()}</p>
           <p>Precio: $${ticketVenta.precio.toFixed(2)}</p>
-          <p style="font-size: 12px; word-break: break-all;">${ticketVenta.qrCode}</p>
         </div>
         <div class="ticket-footer">
           <p>Conserve este ticket para su ingreso</p>
-          <p>Válido para un solo uso</p>
+          <p>Valido para un solo uso</p>
         </div>
       </div>
     `;
@@ -138,13 +149,17 @@ const NuevaVenta: React.FC = () => {
             margin: 0;
             padding: 0;
             width: 80mm;
+            background: white;
+            color: black;
           }
           .ticket {
             text-align: center;
             padding: 20px;
-            border-bottom: 1px dashed #ccc;
+            border-bottom: 1px dashed black;
             break-inside: avoid;
             page-break-after: always;
+            background: white;
+            color: black;
           }
           .ticket:last-child {
             border-bottom: none;
@@ -153,6 +168,7 @@ const NuevaVenta: React.FC = () => {
             font-size: 18px;
             font-weight: bold;
             margin-bottom: 15px;
+            color: black;
           }
           .qr-code {
             margin: 15px auto;
@@ -168,15 +184,17 @@ const NuevaVenta: React.FC = () => {
             margin: 15px 0;
             font-size: 14px;
             line-height: 1.5;
+            color: black;
           }
           .ticket-info p {
             margin: 5px 0;
+            color: black;
           }
           .ticket-footer {
             margin-top: 15px;
             padding-top: 10px;
             font-size: 12px;
-            color: #666;
+            color: black;
           }
           @media print {
             body {
@@ -230,14 +248,16 @@ const NuevaVenta: React.FC = () => {
         // Procesar la cantidad solicitada de cada tipo
         for (let i = 0; i < selectedTicket.cantidad; i++) {
           try {
-            // Generar el código QR en el frontend
-            const qrCode = generarCodigoQR(selectedTicket.ticket.nombre);
+            // Generar el código QR en el frontend incluyendo el código de puerta
+            const puertaCodigo = selectedTicket.ticket.puerta_codigo || 'GEN';
+            const qrCode = generarCodigoQR(selectedTicket.ticket.nombre, puertaCodigo);
 
-            // Crear la venta en la base de datos, enviando el código QR generado
+            // Crear la venta en la base de datos, enviando el código QR y puerta_codigo
             const result = await window.electronAPI.createSale(
               selectedTicket.ticket.id,
               selectedTicket.ticket.precio,
-              qrCode // Nuevo argumento: código QR generado en el frontend
+              qrCode,
+              puertaCodigo
             );
 
             // Usar el código QR generado en el frontend para impresión y registro
@@ -391,9 +411,29 @@ const NuevaVenta: React.FC = () => {
                   <div className="flex justify-between items-start mb-3">
                     <div className="flex-1">
                       <h3 className="font-medium text-[#1D324D] text-base mb-0.5">{ticket.nombre}</h3>
-                      <p className="text-xs text-[#7C4935]/70">
+                      <p className="text-xs text-[#7C4935]/70 mb-1">
                         ${ticket.precio.toFixed(2)} c/u
                       </p>
+                      {ticket.puerta_nombre && (
+                        <div className="flex items-center gap-1 mt-1">
+                          <svg className="w-3 h-3 text-[#457373]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
+                          </svg>
+                          <span className="text-[10px] font-medium text-[#457373]">
+                            Puerta: {ticket.puerta_nombre} ({ticket.puerta_codigo})
+                          </span>
+                        </div>
+                      )}
+                      {!ticket.puerta_nombre && (
+                        <div className="flex items-center gap-1 mt-1">
+                          <svg className="w-3 h-3 text-[#7C4935]/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <span className="text-[10px] text-[#7C4935]/50 italic">
+                            Sin puerta asignada
+                          </span>
+                        </div>
+                      )}
                     </div>
                     {selectedCount > 0 && (
                       <div className="w-5 h-5 bg-gradient-to-r from-[#457373] to-[#1D324D] rounded-full flex items-center justify-center">
@@ -483,12 +523,22 @@ const NuevaVenta: React.FC = () => {
                 <div className="mb-4">
                   <ul className="space-y-2">
                     {selectedTickets.map(({ ticket, cantidad }) => (
-                      <li key={ticket.id} className="flex justify-between items-center p-2 bg-white/50 rounded-lg border border-[#DFE4E4]/30">
-                        <div>
+                      <li key={ticket.id} className="flex justify-between items-start p-2 bg-white/50 rounded-lg border border-[#DFE4E4]/30">
+                        <div className="flex-1">
                           <span className="text-xs font-medium text-[#1D324D]">{cantidad} × {ticket.nombre}</span>
                           <p className="text-xs text-[#7C4935]/70">${ticket.precio.toFixed(2)} c/u</p>
+                          {ticket.puerta_nombre && (
+                            <div className="flex items-center gap-1 mt-0.5">
+                              <svg className="w-2.5 h-2.5 text-[#457373]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
+                              </svg>
+                              <span className="text-[9px] text-[#457373]">
+                                {ticket.puerta_nombre} ({ticket.puerta_codigo})
+                              </span>
+                            </div>
+                          )}
                         </div>
-                        <span className="font-semibold text-sm text-[#457373]">${(ticket.precio * cantidad).toFixed(2)}</span>
+                        <span className="font-semibold text-sm text-[#457373] ml-2">${(ticket.precio * cantidad).toFixed(2)}</span>
                       </li>
                     ))}
                   </ul>

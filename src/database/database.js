@@ -156,7 +156,8 @@ class Database {
       this.db.all(
         `SELECT v.id as venta_id, v.fecha_venta, v.total, v.anulada,
                 u.nombre as vendedor, u.usuario as vendedor_usuario,
-                t.id as ticket_id, t.codigo_qr, t.precio as ticket_precio, tt.nombre as tipo_ticket
+                t.id as ticket_id, t.codigo_qr, t.precio as ticket_precio, tt.nombre as tipo_ticket,
+                t.anulado, t.usado, t.fecha_uso, t.puerta_codigo
          FROM tickets t
          JOIN ventas v ON t.venta_id = v.id
          JOIN usuarios u ON v.usuario_id = u.id
@@ -328,14 +329,28 @@ class Database {
         )
       `);
 
+      // Tabla de puertas/ubicaciones
+      this.db.run(`
+        CREATE TABLE IF NOT EXISTS puertas (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          nombre VARCHAR(100) NOT NULL UNIQUE,
+          codigo VARCHAR(20) NOT NULL UNIQUE,
+          descripcion TEXT,
+          activo BOOLEAN DEFAULT 1,
+          fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
       // Tabla de tipos de tickets
       this.db.run(`
         CREATE TABLE IF NOT EXISTS tipos_ticket (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
-          nombre VARCHAR(50) NOT NULL,
-          precio DECIMAL(10,2) NOT NULL,
+          nombre VARCHAR(50) NOT NULL UNIQUE,
+          precio DECIMAL(10,2) NOT NULL CHECK(precio > 0),
+          puerta_id INTEGER,
           activo BOOLEAN DEFAULT 1,
-          fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (puerta_id) REFERENCES puertas(id)
         )
       `);
 
@@ -357,10 +372,13 @@ class Database {
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           venta_id INTEGER NOT NULL,
           tipo_ticket_id INTEGER NOT NULL,
-          codigo_qr VARCHAR(100) UNIQUE NOT NULL,
+          codigo_qr VARCHAR(150) UNIQUE NOT NULL,
+          puerta_codigo VARCHAR(20),
           precio DECIMAL(10,2) NOT NULL,
           fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           anulado BOOLEAN DEFAULT 0,
+          usado BOOLEAN DEFAULT 0,
+          fecha_uso TIMESTAMP,
           FOREIGN KEY (venta_id) REFERENCES ventas(id),
           FOREIGN KEY (tipo_ticket_id) REFERENCES tipos_ticket(id)
         )
@@ -382,6 +400,7 @@ class Database {
 
       // Insertar usuarios por defecto
       this.insertDefaultUsers();
+      this.insertDefaultPuertas();
     });
   }
 
@@ -403,6 +422,24 @@ class Database {
     `, [hashedVendedorPassword]);
   }
 
+  insertDefaultPuertas() {
+    // Insertar puertas por defecto
+    const puertasDefault = [
+      { nombre: 'Puerta Principal', codigo: 'A', descripcion: 'Entrada principal del evento' },
+      { nombre: 'Puerta VIP', codigo: 'VIP', descripcion: 'Acceso exclusivo VIP' },
+      { nombre: 'Puerta Norte', codigo: 'N', descripcion: 'Entrada norte' },
+      { nombre: 'Puerta Sur', codigo: 'S', descripcion: 'Entrada sur' }
+    ];
+
+    puertasDefault.forEach(puerta => {
+      this.db.run(`
+        INSERT OR IGNORE INTO puertas (nombre, codigo, descripcion)
+        SELECT ?, ?, ?
+        WHERE NOT EXISTS (SELECT 1 FROM puertas WHERE codigo = ?)
+      `, [puerta.nombre, puerta.codigo, puerta.descripcion, puerta.codigo]);
+    });
+  }
+
 
   getUserByUsername(usuario) {
     return new Promise((resolve, reject) => {
@@ -421,7 +458,10 @@ class Database {
   getTicketTypes() {
     return new Promise((resolve, reject) => {
       this.db.all(
-        'SELECT * FROM tipos_ticket ORDER BY id DESC',
+        `SELECT tt.*, p.nombre as puerta_nombre, p.codigo as puerta_codigo 
+         FROM tipos_ticket tt
+         LEFT JOIN puertas p ON tt.puerta_id = p.id
+         ORDER BY tt.id DESC`,
         [],
         (err, rows) => {
           if (err) reject(err);
@@ -435,7 +475,11 @@ class Database {
   getActiveTicketTypes() {
     return new Promise((resolve, reject) => {
       this.db.all(
-        'SELECT * FROM tipos_ticket WHERE activo = 1 ORDER BY id DESC',
+        `SELECT tt.*, p.nombre as puerta_nombre, p.codigo as puerta_codigo 
+         FROM tipos_ticket tt
+         LEFT JOIN puertas p ON tt.puerta_id = p.id
+         WHERE tt.activo = 1 
+         ORDER BY tt.id DESC`,
         [],
         (err, rows) => {
           if (err) reject(err);
@@ -446,7 +490,7 @@ class Database {
   }
 
   // Registrar una nueva venta, ahora acepta qrCode generado en el frontend
-  createSale(userId, ticketTypeId, totalAmount, qrCode) {
+  createSale(userId, ticketTypeId, totalAmount, qrCode, puertaCodigo) {
     return new Promise((resolve, reject) => {
       let ventaId;
 
@@ -472,10 +516,10 @@ class Database {
           );
           ventaId = ventaResult.lastID;
 
-          // Insertar el ticket con el código QR recibido
+          // Insertar el ticket con el código QR y puerta_codigo
           await runQuery(
-            'INSERT INTO tickets (venta_id, tipo_ticket_id, codigo_qr, precio) VALUES (?, ?, ?, ?)',
-            [ventaId, ticketTypeId, qrCode, totalAmount]
+            'INSERT INTO tickets (venta_id, tipo_ticket_id, codigo_qr, puerta_codigo, precio) VALUES (?, ?, ?, ?, ?)',
+            [ventaId, ticketTypeId, qrCode, puertaCodigo || null, totalAmount]
           );
 
           // Confirmar transacción
@@ -487,6 +531,7 @@ class Database {
             qrCode,
             ticketTypeId,
             precio: totalAmount,
+            puertaCodigo,
             fecha: new Date().toISOString()
           });
         } catch (error) {
@@ -573,18 +618,34 @@ class Database {
   // Crear un nuevo tipo de ticket
   createTicketType(data) {
     return new Promise((resolve, reject) => {
-      const { nombre, precio } = data;
+      const { nombre, precio, puerta_id } = data;
+      
+      // Validaciones
+      if (!nombre || nombre.trim() === '') {
+        reject(new Error('El nombre del tipo de ticket es requerido'));
+        return;
+      }
+      if (!precio || precio <= 0) {
+        reject(new Error('El precio debe ser mayor a 0'));
+        return;
+      }
+      
       this.db.run(
-        'INSERT INTO tipos_ticket (nombre, precio) VALUES (?, ?)',
-        [nombre, precio],
+        'INSERT INTO tipos_ticket (nombre, precio, puerta_id) VALUES (?, ?, ?)',
+        [nombre.trim(), precio, puerta_id || null],
         function(err) {
           if (err) {
-            reject(err);
+            if (err.message && err.message.includes('UNIQUE')) {
+              reject(new Error('Ya existe un tipo de ticket con ese nombre'));
+            } else {
+              reject(err);
+            }
           } else {
             resolve({
               id: this.lastID,
-              nombre,
+              nombre: nombre.trim(),
               precio,
+              puerta_id,
               activo: 1,
               fecha_creacion: new Date().toISOString()
             });
@@ -597,13 +658,31 @@ class Database {
   // Actualizar un tipo de ticket existente
   updateTicketType(data) {
     return new Promise((resolve, reject) => {
-      const { id, nombre, precio } = data;
+      const { id, nombre, precio, puerta_id } = data;
+      
+      // Validaciones
+      if (!nombre || nombre.trim() === '') {
+        reject(new Error('El nombre del tipo de ticket es requerido'));
+        return;
+      }
+      if (!precio || precio <= 0) {
+        reject(new Error('El precio debe ser mayor a 0'));
+        return;
+      }
+      
       this.db.run(
-        'UPDATE tipos_ticket SET nombre = ?, precio = ? WHERE id = ?',
-        [nombre, precio, id],
+        'UPDATE tipos_ticket SET nombre = ?, precio = ?, puerta_id = ? WHERE id = ?',
+        [nombre.trim(), precio, puerta_id || null, id],
         (err) => {
-          if (err) reject(err);
-          else resolve({ id, nombre, precio });
+          if (err) {
+            if (err.message && err.message.includes('UNIQUE')) {
+              reject(new Error('Ya existe un tipo de ticket con ese nombre'));
+            } else {
+              reject(err);
+            }
+          } else {
+            resolve({ id, nombre: nombre.trim(), precio, puerta_id });
+          }
         }
       );
     });
@@ -650,6 +729,182 @@ class Database {
             // Si no hay tickets vendidos, eliminamos el registro
             this.db.run(
               'DELETE FROM tipos_ticket WHERE id = ?',
+              [id],
+              (err) => {
+                if (err) reject(err);
+                else resolve({ success: true, wasDeactivated: false });
+              }
+            );
+          }
+        }
+      );
+    });
+  }
+
+  // ============================================
+  // MÉTODOS PARA PUERTAS/UBICACIONES
+  // ============================================
+
+  // Obtener todas las puertas
+  getPuertas() {
+    return new Promise((resolve, reject) => {
+      this.db.all(
+        'SELECT * FROM puertas ORDER BY id DESC',
+        [],
+        (err, rows) => {
+          if (err) reject(err);
+          else resolve(rows);
+        }
+      );
+    });
+  }
+
+  // Obtener solo puertas activas
+  getActivePuertas() {
+    return new Promise((resolve, reject) => {
+      this.db.all(
+        'SELECT * FROM puertas WHERE activo = 1 ORDER BY nombre ASC',
+        [],
+        (err, rows) => {
+          if (err) reject(err);
+          else resolve(rows);
+        }
+      );
+    });
+  }
+
+  // Crear una nueva puerta
+  createPuerta(data) {
+    return new Promise((resolve, reject) => {
+      const { nombre, codigo, descripcion } = data;
+      
+      // Validaciones
+      if (!nombre || nombre.trim() === '') {
+        reject(new Error('El nombre de la puerta es requerido'));
+        return;
+      }
+      if (!codigo || codigo.trim() === '') {
+        reject(new Error('El código de la puerta es requerido'));
+        return;
+      }
+      // Validar que el código solo contenga letras y números
+      if (!/^[A-Za-z0-9]+$/.test(codigo.trim())) {
+        reject(new Error('El código solo puede contener letras y números'));
+        return;
+      }
+      
+      this.db.run(
+        'INSERT INTO puertas (nombre, codigo, descripcion) VALUES (?, ?, ?)',
+        [nombre.trim(), codigo.trim().toUpperCase(), descripcion || null],
+        function(err) {
+          if (err) {
+            if (err.message && err.message.includes('UNIQUE')) {
+              if (err.message.includes('codigo')) {
+                reject(new Error('Ya existe una puerta con ese código'));
+              } else {
+                reject(new Error('Ya existe una puerta con ese nombre'));
+              }
+            } else {
+              reject(err);
+            }
+          } else {
+            resolve({
+              id: this.lastID,
+              nombre: nombre.trim(),
+              codigo: codigo.trim().toUpperCase(),
+              descripcion,
+              activo: 1,
+              fecha_creacion: new Date().toISOString()
+            });
+          }
+        }
+      );
+    });
+  }
+
+  // Actualizar una puerta
+  updatePuerta(data) {
+    return new Promise((resolve, reject) => {
+      const { id, nombre, codigo, descripcion } = data;
+      
+      // Validaciones
+      if (!nombre || nombre.trim() === '') {
+        reject(new Error('El nombre de la puerta es requerido'));
+        return;
+      }
+      if (!codigo || codigo.trim() === '') {
+        reject(new Error('El código de la puerta es requerido'));
+        return;
+      }
+      // Validar que el código solo contenga letras y números
+      if (!/^[A-Za-z0-9]+$/.test(codigo.trim())) {
+        reject(new Error('El código solo puede contener letras y números'));
+        return;
+      }
+      
+      this.db.run(
+        'UPDATE puertas SET nombre = ?, codigo = ?, descripcion = ? WHERE id = ?',
+        [nombre.trim(), codigo.trim().toUpperCase(), descripcion || null, id],
+        (err) => {
+          if (err) {
+            if (err.message && err.message.includes('UNIQUE')) {
+              if (err.message.includes('codigo')) {
+                reject(new Error('Ya existe una puerta con ese código'));
+              } else {
+                reject(new Error('Ya existe una puerta con ese nombre'));
+              }
+            } else {
+              reject(err);
+            }
+          } else {
+            resolve({ id, nombre: nombre.trim(), codigo: codigo.trim().toUpperCase(), descripcion });
+          }
+        }
+      );
+    });
+  }
+
+  // Cambiar estado activo/inactivo de una puerta
+  togglePuertaStatus(id, active) {
+    return new Promise((resolve, reject) => {
+      this.db.run(
+        'UPDATE puertas SET activo = ? WHERE id = ?',
+        [active ? 1 : 0, id],
+        (err) => {
+          if (err) reject(err);
+          else resolve({ id, activo: active });
+        }
+      );
+    });
+  }
+
+  // Eliminar una puerta
+  deletePuerta(id) {
+    return new Promise((resolve, reject) => {
+      // Verificar si hay tipos de ticket usando esta puerta
+      this.db.get(
+        'SELECT COUNT(*) as count FROM tipos_ticket WHERE puerta_id = ?',
+        [id],
+        (err, row) => {
+          if (err) {
+            reject(err);
+            return;
+          }
+
+          if (row.count > 0) {
+            // Si hay tipos de ticket, solo desactivar
+            this.db.run(
+              'UPDATE puertas SET activo = 0 WHERE id = ?',
+              [id],
+              (err) => {
+                if (err) reject(err);
+                else resolve({ success: true, wasDeactivated: true });
+              }
+            );
+          } else {
+            // Si no hay tipos de ticket, eliminar
+            this.db.run(
+              'DELETE FROM puertas WHERE id = ?',
               [id],
               (err) => {
                 if (err) reject(err);

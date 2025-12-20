@@ -27,8 +27,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   updateTicketType: (data) => ipcRenderer.invoke('updateTicketType', data),
   toggleTicketTypeStatus: (id, active) => ipcRenderer.invoke('toggleTicketTypeStatus', id, active),
   deleteTicketType: (id) => ipcRenderer.invoke('deleteTicketType', id),
-  // Ahora acepta el código QR generado en el frontend
-  createSale: (ticketTypeId, amount, qrCode) => ipcRenderer.invoke('createSale', ticketTypeId, amount, qrCode),
+  // Ahora acepta el código QR y puerta_codigo generado en el frontend
+  createSale: (ticketTypeId, amount, qrCode, puertaCodigo) => ipcRenderer.invoke('createSale', ticketTypeId, amount, qrCode, puertaCodigo),
   getDailySales: () => ipcRenderer.invoke('getDailySales'),
   getVendedorDailySummary: (fecha) => ipcRenderer.invoke('getVendedorDailySummary', fecha),
   // Printing system
@@ -45,4 +45,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Ventas del día para admin
   ,getAllDailySales: () => ipcRenderer.invoke('getAllDailySales')
   ,annulSale: (ventaId) => ipcRenderer.invoke('annulSale', ventaId)
+
+  // Puertas/Ubicaciones
+  ,getPuertas: () => ipcRenderer.invoke('getPuertas')
+  ,getActivePuertas: () => ipcRenderer.invoke('getActivePuertas')
+  ,createPuerta: (data) => ipcRenderer.invoke('createPuerta', data)
+  ,updatePuerta: (data) => ipcRenderer.invoke('updatePuerta', data)
+  ,togglePuertaStatus: (id, active) => ipcRenderer.invoke('togglePuertaStatus', id, active)
+  ,deletePuerta: (id) => ipcRenderer.invoke('deletePuerta', id)
 });

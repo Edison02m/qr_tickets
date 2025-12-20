@@ -6,11 +6,22 @@ interface TicketType {
   precio: number;
   activo: boolean;
   fecha_creacion: string;
+  puerta_id?: number;
+  puerta_nombre?: string;
+  puerta_codigo?: string;
+}
+
+interface Puerta {
+  id: number;
+  nombre: string;
+  codigo: string;
+  activo: boolean;
 }
 
 interface TicketTypeFormData {
   nombre: string;
   precio: number;
+  puerta_id?: number;
 }
 
 interface FormErrors {
@@ -20,6 +31,7 @@ interface FormErrors {
 
 const TicketTypesAdmin: React.FC = () => {
   const [ticketTypes, setTicketTypes] = useState<TicketType[]>([]);
+  const [puertas, setPuertas] = useState<Puerta[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [formData, setFormData] = useState<TicketTypeFormData>({
     nombre: '',
@@ -30,6 +42,7 @@ const TicketTypesAdmin: React.FC = () => {
 
   useEffect(() => {
     loadTicketTypes();
+    loadPuertas();
   }, []);
 
   // Effect para cerrar modal con ESC
@@ -62,12 +75,27 @@ const TicketTypesAdmin: React.FC = () => {
     }
   };
 
+  const loadPuertas = async () => {
+    try {
+      if (window.electronAPI) {
+        const data = await window.electronAPI.getActivePuertas();
+        setPuertas(data);
+      }
+    } catch (error) {
+      console.error('Error loading puertas:', error);
+    }
+  };
+
   const handleOpenDialog = (ticketType?: TicketType) => {
     if (ticketType) {
-      setFormData({
+      const newFormData: TicketTypeFormData = {
         nombre: ticketType.nombre,
         precio: ticketType.precio,
-      });
+      };
+      if (ticketType.puerta_id) {
+        newFormData.puerta_id = ticketType.puerta_id;
+      }
+      setFormData(newFormData);
       setEditingId(ticketType.id);
     } else {
       setFormData({
@@ -76,6 +104,7 @@ const TicketTypesAdmin: React.FC = () => {
       });
       setEditingId(null);
     }
+    setFormErrors({});
     setIsDialogOpen(true);
   };
 
@@ -83,9 +112,10 @@ const TicketTypesAdmin: React.FC = () => {
     setIsDialogOpen(false);
     setFormData({ nombre: '', precio: 0 });
     setEditingId(null);
+    setFormErrors({});
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     
     if (name === 'precio') {
@@ -98,6 +128,16 @@ const TicketTypesAdmin: React.FC = () => {
           ...prev,
           [name]: numberValue,
         }));
+      }
+    } else if (name === 'puerta_id') {
+      if (value) {
+        setFormData(prev => ({
+          ...prev,
+          puerta_id: parseInt(value),
+        }));
+      } else {
+        const { puerta_id, ...rest } = formData;
+        setFormData(rest);
       }
     } else {
       setFormData(prev => ({
@@ -115,11 +155,26 @@ const TicketTypesAdmin: React.FC = () => {
     
     // Validate fields
     const errors: FormErrors = {};
+    
+    // Validar nombre
     if (!formData.nombre.trim()) {
       errors.nombre = 'El nombre es requerido';
+    } else {
+      // Verificar que el nombre no exista (excepto si es el mismo ticket en edición)
+      const nombreExiste = ticketTypes.some(
+        t => t.nombre.toLowerCase().trim() === formData.nombre.toLowerCase().trim() && t.id !== editingId
+      );
+      if (nombreExiste) {
+        errors.nombre = 'Ya existe un tipo de ticket con este nombre';
+      }
     }
+    
+    // Validar precio
     if (formData.precio <= 0) {
       errors.precio = 'El precio debe ser mayor a 0';
+    }
+    if (isNaN(formData.precio)) {
+      errors.precio = 'El precio debe ser un número válido';
     }
 
     // If there are errors, show them and stop submission
@@ -143,8 +198,11 @@ const TicketTypesAdmin: React.FC = () => {
         await loadTicketTypes();
         handleCloseDialog();
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving ticket type:', error);
+      if (error.message && error.message.includes('UNIQUE')) {
+        setFormErrors({ nombre: 'Este nombre ya está en uso' });
+      }
     }
   };
 
@@ -204,6 +262,9 @@ const TicketTypesAdmin: React.FC = () => {
                   Precio
                 </th>
                 <th className="px-8 py-6 text-left text-xs font-medium text-[#1D324D] uppercase tracking-wider">
+                  Puerta
+                </th>
+                <th className="px-8 py-6 text-left text-xs font-medium text-[#1D324D] uppercase tracking-wider">
                   Fecha Creación
                 </th>
                 <th className="px-8 py-6 text-left text-xs font-medium text-[#1D324D] uppercase tracking-wider">
@@ -223,6 +284,17 @@ const TicketTypesAdmin: React.FC = () => {
                   <td className="px-8 py-6 whitespace-nowrap">
                     <div className="text-sm font-semibold text-[#457373]">
                       ${type.precio.toFixed(2)}
+                    </div>
+                  </td>
+                  <td className="px-8 py-6 whitespace-nowrap">
+                    <div className="text-sm text-[#1D324D]">
+                      {type.puerta_nombre ? (
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-[#457373]/20 text-[#457373]">
+                          {type.puerta_nombre} ({type.puerta_codigo})
+                        </span>
+                      ) : (
+                        <span className="text-[#7C4935]/60 italic">Sin puerta</span>
+                      )}
                     </div>
                   </td>
                   <td className="px-8 py-6 whitespace-nowrap">
@@ -313,6 +385,28 @@ const TicketTypesAdmin: React.FC = () => {
                 {formErrors.nombre && (
                   <p className="mt-2 text-sm text-red-600">{formErrors.nombre}</p>
                 )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-[#1D324D] mb-3">
+                  Puerta (Opcional)
+                </label>
+                <select
+                  name="puerta_id"
+                  value={formData.puerta_id || ''}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-4 bg-[#F1EADC]/30 border border-[#DFE4E4] rounded-2xl text-[#1D324D] focus:outline-none focus:ring-2 focus:ring-[#457373] focus:border-transparent transition-all duration-300"
+                >
+                  <option value="">Sin puerta asignada</option>
+                  {puertas.map(puerta => (
+                    <option key={puerta.id} value={puerta.id}>
+                      {puerta.nombre} ({puerta.codigo})
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-2 text-xs text-[#7C4935]/60">
+                  Selecciona la puerta que abre este tipo de ticket
+                </p>
               </div>
 
               <div>

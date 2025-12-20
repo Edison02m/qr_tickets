@@ -11,11 +11,11 @@ declare global {
       setMenu: (role: string) => Promise<any>;
       getTicketTypes: () => Promise<any[]>;
       getActiveTicketTypes: () => Promise<any[]>;
-      createTicketType: (data: { nombre: string; precio: number }) => Promise<any>;
-      updateTicketType: (data: { id: number; nombre: string; precio: number }) => Promise<any>;
+      createTicketType: (data: { nombre: string; precio: number; puerta_id?: number }) => Promise<any>;
+      updateTicketType: (data: { id: number; nombre: string; precio: number; puerta_id?: number }) => Promise<any>;
       deleteTicketType: (id: number) => Promise<any>;
       toggleTicketTypeStatus: (id: number, active: boolean) => Promise<any>;
-  createSale: (ticketTypeId: number, amount: number, qrCode: string) => Promise<any>;
+      createSale: (ticketTypeId: number, amount: number, qrCode: string, puertaCodigo?: string) => Promise<any>;
       getDailySales: () => Promise<any[]>;
       getVendedorDailySummary: (fecha?: string) => Promise<any>;
       printTicket: (html: string) => Promise<{ success: boolean }>;
@@ -38,6 +38,14 @@ declare global {
   updateCashClosure: (data: { usuario_id: number; fecha_inicio: string; total_ventas: number; cantidad_tickets: number; detalle_tipos: string; }) => Promise<any>;
   upsertCashClosure: (data: { usuario_id: number; fecha_inicio: string; total_ventas: number; cantidad_tickets: number; detalle_tipos: string; }) => Promise<any>;
   getCashClosureByDateAndUser: (usuario_id: number, fecha_inicio: string) => Promise<any>;
+
+  // Puertas/Ubicaciones
+  getPuertas: () => Promise<any[]>;
+  getActivePuertas: () => Promise<any[]>;
+  createPuerta: (data: { nombre: string; codigo: string; descripcion?: string }) => Promise<any>;
+  updatePuerta: (data: { id: number; nombre: string; codigo: string; descripcion?: string }) => Promise<any>;
+  togglePuertaStatus: (id: number, active: boolean) => Promise<any>;
+  deletePuerta: (id: number) => Promise<any>;
     };
   }
 }

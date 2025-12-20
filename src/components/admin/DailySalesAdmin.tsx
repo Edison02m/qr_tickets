@@ -11,6 +11,9 @@ interface Venta {
   codigo_qr: string;
   ticket_precio: number;
   tipo_ticket: string;
+  anulado: number;
+  usado: number;
+  fecha_uso?: string;
 }
 
 const DailySalesAdmin: React.FC = () => {
@@ -112,6 +115,21 @@ const DailySalesAdmin: React.FC = () => {
   };
 
   const handleAnular = async (ventaId: number) => {
+    // Encontrar la venta y verificar si tiene tickets usados
+    const venta = ventasAgrupadas[ventaId];
+    if (!venta) return;
+    
+    const ticketsUsados = venta.tickets.filter(t => t.usado === 1);
+    
+    if (ticketsUsados.length > 0) {
+      const mensaje = ticketsUsados.length === 1
+        ? '⚠️ No se puede anular esta venta porque tiene 1 ticket que ya fue usado.'
+        : `⚠️ No se puede anular esta venta porque tiene ${ticketsUsados.length} tickets que ya fueron usados.`;
+      
+      alert(mensaje + '\n\nLos tickets usados no se pueden anular por motivos de control y auditoría.');
+      return;
+    }
+    
     if (!window.confirm('¿Seguro que deseas anular esta venta?')) return;
     setAnulando(ventaId);
     try {
@@ -270,21 +288,13 @@ const DailySalesAdmin: React.FC = () => {
                       )}
                     </span>
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-[#1D324D] uppercase tracking-wider">Tickets</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-[#1D324D] uppercase tracking-wider">Código QR</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-[#1D324D] uppercase tracking-wider">Tipo</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-[#1D324D] uppercase tracking-wider">Estado del Ticket</th>
                   <th className="px-6 py-4 text-left cursor-pointer select-none group" onClick={() => handleSort('total')}>
                     <span className="flex items-center gap-2 text-xs font-medium text-[#1D324D] uppercase tracking-wider">
                       Total
                       {sortBy === 'total' && (
-                        <svg className={`w-4 h-4 text-[#457373] ${sortDir === 'asc' ? '' : 'rotate-180'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                        </svg>
-                      )}
-                    </span>
-                  </th>
-                  <th className="px-6 py-4 text-left cursor-pointer select-none group" onClick={() => handleSort('estado')}>
-                    <span className="flex items-center gap-2 text-xs font-medium text-[#1D324D] uppercase tracking-wider">
-                      Estado
-                      {sortBy === 'estado' && (
                         <svg className={`w-4 h-4 text-[#457373] ${sortDir === 'asc' ? '' : 'rotate-180'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
                         </svg>
@@ -308,13 +318,52 @@ const DailySalesAdmin: React.FC = () => {
                     <td className="px-6 py-4">
                       <div className="space-y-2">
                         {venta.tickets.map((t) => (
-                          <div key={t.ticket_id} className="flex items-center space-x-2">
-                            <span className="font-mono text-xs bg-[#F1EADC]/50 text-[#1D324D] px-2 py-1 rounded-lg border border-[#DFE4E4]/50">
+                          <div key={t.ticket_id}>
+                            <span className="font-mono text-xs bg-[#F1EADC]/50 text-[#1D324D] px-3 py-1.5 rounded-lg border border-[#DFE4E4]/50">
                               {t.codigo_qr}
                             </span>
-                            <span className="text-xs text-[#7C4935] bg-[#DFE4E4]/30 px-2 py-1 rounded-lg">
+                          </div>
+                        ))}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="space-y-2">
+                        {venta.tickets.map((t) => (
+                          <div key={t.ticket_id}>
+                            <span className="text-xs text-[#7C4935] bg-[#DFE4E4]/30 px-3 py-1.5 rounded-lg font-medium">
                               {t.tipo_ticket}
                             </span>
+                          </div>
+                        ))}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="space-y-2">
+                        {venta.tickets.map((t) => (
+                          <div key={t.ticket_id}>
+                            {/* Estado del ticket individual con iconos */}
+                            {t.anulado ? (
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-100 text-red-800 border border-red-200">
+                                <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                                </svg>
+                                ANULADO
+                              </span>
+                            ) : t.usado ? (
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-100 text-blue-800 border border-blue-200" title={t.fecha_uso ? `Usado el ${new Date(t.fecha_uso).toLocaleString()}` : 'Usado'}>
+                                <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                </svg>
+                                USADO
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-green-100 text-green-800 border border-green-200">
+                                <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                </svg>
+                                ACTIVO
+                              </span>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -323,28 +372,26 @@ const DailySalesAdmin: React.FC = () => {
                       <div className="text-sm font-semibold text-[#457373]">${venta.total.toFixed(2)}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      {venta.anulada ? (
-                        <span className="px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">
-                          Anulada
-                        </span>
-                      ) : (
-                        <span className="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
-                          Activa
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
                       {!venta.anulada && (
-                        <button
-                          className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-xl transition-all duration-200 disabled:opacity-50"
-                          onClick={() => handleAnular(venta.venta_id)}
-                          disabled={anulando === venta.venta_id}
-                          title="Anular venta"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                          </svg>
-                        </button>
+                        (() => {
+                          const tieneTicketsUsados = venta.tickets.some(t => t.usado === 1);
+                          return (
+                            <button
+                              className={`p-2 rounded-xl transition-all duration-200 ${
+                                tieneTicketsUsados
+                                  ? 'text-gray-400 cursor-not-allowed opacity-50'
+                                  : 'text-red-500 hover:text-red-700 hover:bg-red-50'
+                              }`}
+                              onClick={() => handleAnular(venta.venta_id)}
+                              disabled={anulando === venta.venta_id || tieneTicketsUsados}
+                              title={tieneTicketsUsados ? 'No se puede anular: tiene tickets usados' : 'Anular venta'}
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                              </svg>
+                            </button>
+                          );
+                        })()
                       )}
                     </td>
                   </tr>

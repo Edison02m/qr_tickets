@@ -44,12 +44,27 @@ function getDatabasePath() {
 
 const dbPath = getDatabasePath();
 
+// Función helper para obtener fecha/hora local en formato SQLite
+function getLocalDateTime() {
+  const now = new Date();
+  const offset = now.getTimezoneOffset() * 60000; // offset en milisegundos
+  const localDate = new Date(now.getTime() - offset);
+  return localDate.toISOString().slice(0, 19).replace('T', ' ');
+}
+
+// Función helper para obtener solo la fecha local en formato YYYY-MM-DD
+function getLocalDate(date = new Date()) {
+  const offset = date.getTimezoneOffset() * 60000;
+  const localDate = new Date(date.getTime() - offset);
+  return localDate.toISOString().split('T')[0];
+}
+
 class Database {
   // Actualizar cierre de caja existente
   updateCashClosure({ usuario_id, fecha_inicio, total_ventas, cantidad_tickets, detalle_tipos }) {
     return new Promise((resolve, reject) => {
       this.db.run(
-        `UPDATE cierres_caja SET total_ventas = ?, cantidad_tickets = ?, detalle_tipos = ?, fecha_cierre = CURRENT_TIMESTAMP
+        `UPDATE cierres_caja SET total_ventas = ?, cantidad_tickets = ?, detalle_tipos = ?, fecha_cierre = datetime('now', 'localtime')
          WHERE usuario_id = ? AND date(fecha_inicio) = date(?)`,
         [total_ventas, cantidad_tickets, detalle_tipos, usuario_id, fecha_inicio],
         function(err) {
@@ -103,7 +118,7 @@ class Database {
         if (existingClosure) {
           // Actualizar el cierre existente
           this.db.run(
-            `UPDATE cierres_caja SET total_ventas = ?, cantidad_tickets = ?, detalle_tipos = ?, fecha_cierre = CURRENT_TIMESTAMP
+            `UPDATE cierres_caja SET total_ventas = ?, cantidad_tickets = ?, detalle_tipos = ?, fecha_cierre = datetime('now', 'localtime')
              WHERE usuario_id = ? AND date(fecha_inicio) = date(?)`,
             [total_ventas, cantidad_tickets, detalle_tipos, usuario_id, fecha_inicio],
             function(err) {
@@ -325,7 +340,7 @@ class Database {
           password VARCHAR(255) NOT NULL,
           rol VARCHAR(20) NOT NULL CHECK(rol IN ('vendedor', 'admin')),
           activo BOOLEAN DEFAULT 1,
-          fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          fecha_creacion TIMESTAMP DEFAULT (datetime('now', 'localtime'))
         )
       `);
 
@@ -337,7 +352,7 @@ class Database {
           codigo VARCHAR(20) NOT NULL UNIQUE,
           descripcion TEXT,
           activo BOOLEAN DEFAULT 1,
-          fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          fecha_creacion TIMESTAMP DEFAULT (datetime('now', 'localtime'))
         )
       `);
 
@@ -349,7 +364,7 @@ class Database {
           precio DECIMAL(10,2) NOT NULL CHECK(precio > 0),
           puerta_id INTEGER,
           activo BOOLEAN DEFAULT 1,
-          fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          fecha_creacion TIMESTAMP DEFAULT (datetime('now', 'localtime')),
           FOREIGN KEY (puerta_id) REFERENCES puertas(id)
         )
       `);
@@ -360,7 +375,7 @@ class Database {
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           usuario_id INTEGER NOT NULL,
           total DECIMAL(10,2) NOT NULL,
-          fecha_venta TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          fecha_venta TIMESTAMP DEFAULT (datetime('now', 'localtime')),
           anulada BOOLEAN DEFAULT 0,
           FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
         )
@@ -375,7 +390,7 @@ class Database {
           codigo_qr VARCHAR(150) UNIQUE NOT NULL,
           puerta_codigo VARCHAR(20),
           precio DECIMAL(10,2) NOT NULL,
-          fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          fecha_creacion TIMESTAMP DEFAULT (datetime('now', 'localtime')),
           anulado BOOLEAN DEFAULT 0,
           usado BOOLEAN DEFAULT 0,
           fecha_uso TIMESTAMP,
@@ -390,7 +405,7 @@ class Database {
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           usuario_id INTEGER NOT NULL,
           fecha_inicio TIMESTAMP NOT NULL,
-          fecha_cierre TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          fecha_cierre TIMESTAMP DEFAULT (datetime('now', 'localtime')),
           total_ventas DECIMAL(10,2) NOT NULL,
           cantidad_tickets INTEGER NOT NULL,
           detalle_tipos TEXT,
@@ -532,7 +547,7 @@ class Database {
             ticketTypeId,
             precio: totalAmount,
             puertaCodigo,
-            fecha: new Date().toISOString()
+            fecha: getLocalDateTime()
           });
         } catch (error) {
           await runQuery('ROLLBACK', [])
@@ -565,7 +580,7 @@ class Database {
          AND date(v.fecha_venta) = date(?)
          AND v.anulada = 0
          ORDER BY v.fecha_venta DESC`,
-        [userId, today.toISOString()],
+        [userId, getLocalDate(today)],
         (err, rows) => {
           if (err) reject(err);
           else resolve(rows);
@@ -578,7 +593,7 @@ class Database {
   getVendedorDailySummary(userId, fecha = null) {
     return new Promise((resolve, reject) => {
       // Si no se proporciona fecha, usar la fecha actual
-      const fechaConsulta = fecha || new Date().toISOString().split('T')[0];
+      const fechaConsulta = fecha || getLocalDate();
       
       this.db.all(
         `SELECT 
@@ -647,7 +662,7 @@ class Database {
               precio,
               puerta_id,
               activo: 1,
-              fecha_creacion: new Date().toISOString()
+              fecha_creacion: getLocalDateTime()
             });
           }
         }
@@ -814,7 +829,7 @@ class Database {
               codigo: codigo.trim().toUpperCase(),
               descripcion,
               activo: 1,
-              fecha_creacion: new Date().toISOString()
+              fecha_creacion: getLocalDateTime()
             });
           }
         }

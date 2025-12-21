@@ -172,95 +172,109 @@ function App() {
   }
 
   return (
-    <div className="h-screen flex overflow-hidden">
-      {/* Left Side - Decorative */}
-      <div className="hidden lg:flex lg:w-[30%] relative bg-gradient-to-br from-[#1D324D] via-[#2C4A65] to-[#457373]">
-        {/* Abstract Floating Elements */}
-        <div className="absolute inset-0">
-          <div className="absolute top-16 left-8 w-20 h-20 bg-[#DFE4E4] opacity-20 rounded-full blur-xl"></div>
-          <div className="absolute top-1/4 right-4 w-32 h-32 bg-[#F1EADC] opacity-15 rounded-full blur-2xl"></div>
-          <div className="absolute bottom-1/4 left-4 w-16 h-16 bg-[#7C4935] opacity-25 rounded-full blur-lg"></div>
-          <div className="absolute bottom-16 right-8 w-24 h-24 bg-[#457373] opacity-30 rounded-full blur-xl"></div>
-        </div>
-        
-        {/* Grid Pattern */}
-        <div className="absolute inset-0 opacity-3">
-          <div className="h-full w-full" style={{
-            backgroundImage: `radial-gradient(circle at 1px 1px, rgba(255,255,255,0.4) 1px, transparent 0)`,
-            backgroundSize: '30px 30px'
+    <div className="h-screen flex overflow-hidden bg-gray-50">
+      {/* Left Side - Brand Section */}
+      <div className="hidden lg:flex lg:w-2/5 relative bg-gradient-to-br from-[#1D324D] to-[#457373] overflow-hidden">
+        {/* Animated Background Pattern */}
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute top-0 left-0 w-full h-full" style={{
+            backgroundImage: `radial-gradient(circle at 2px 2px, rgba(255,255,255,0.15) 1px, transparent 0)`,
+            backgroundSize: '40px 40px'
           }}></div>
         </div>
         
+        {/* Floating Elements */}
+        <div className="absolute inset-0">
+          <div className="absolute top-20 left-20 w-32 h-32 bg-white/5 rounded-full blur-2xl animate-pulse"></div>
+          <div className="absolute bottom-20 right-20 w-40 h-40 bg-white/5 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
+        </div>
+        
         {/* Content */}
-        <div className="relative z-10 flex flex-col justify-center items-center h-full px-8">
-          <div className="text-center">
-            {/* Decorative Line */}
-            <div className="w-16 h-1 bg-[#F1EADC] mx-auto mb-8 rounded-full"></div>
-            
-            {/* Title */}
-            <h1 className="text-4xl font-light text-white mb-4 leading-tight">
-              Sistema
-              <span className="block font-medium text-[#F1EADC] mt-1">Tickets</span>
-            </h1>
-            
-            {/* Subtitle */}
-            <p className="text-[#DFE4E4] text-lg leading-relaxed font-light max-w-xs mx-auto">
-              Gestión y control eficiente de ventas
-            </p>
-            
-            {/* Decorative Elements */}
-            <div className="flex justify-center space-x-2 mt-8">
-              <div className="w-2 h-2 bg-[#F1EADC] rounded-full opacity-60"></div>
-              <div className="w-2 h-2 bg-[#457373] rounded-full opacity-80"></div>
-              <div className="w-2 h-2 bg-[#7C4935] rounded-full opacity-60"></div>
+        <div className="relative z-10 flex flex-col justify-center items-start px-12 w-full">
+          {/* Logo/Icon */}
+          <div className="mb-8">
+            <div className="w-14 h-14 bg-white/10 backdrop-blur-sm rounded-xl flex items-center justify-center border border-white/20">
+              <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21L9 10.5M5 5v8a2 2 0 002 2h2m0 0v2a2 2 0 002 2h2m2-2a2 2 0 012-2V9a2 2 0 00-2-2H9" />
+              </svg>
             </div>
           </div>
+          
+          {/* Title */}
+          <h1 className="text-4xl font-light text-white mb-3 tracking-tight">
+            Sistema de<br />
+            <span className="font-semibold">Tickets</span>
+          </h1>
+          
+          {/* Description */}
+          <p className="text-white/70 text-base max-w-xs leading-relaxed">
+            Gestión y control de ventas con tecnología QR
+          </p>
         </div>
       </div>
 
       {/* Right Side - Login Form */}
-      <div className="w-full lg:w-[70%] flex items-center justify-center p-8 bg-gradient-to-br from-[#F1EADC] to-[#DFE4E4]">
-        <div className="w-full max-w-sm">
+      <div className="w-full lg:w-3/5 flex items-center justify-center p-8">
+        <div className="w-full max-w-md">
           {/* Header */}
-          <div className="text-center mb-10">
-            <h2 className="text-3xl font-light text-[#1D324D] mb-3">Iniciar Sesión</h2>
-            <p className="text-[#7C4935] text-sm font-light">Accede a tu cuenta para continuar</p>
+          <div className="mb-8">
+            {/* Mobile Logo */}
+            <div className="lg:hidden mb-6">
+              <div className="w-12 h-12 bg-[#1D324D] rounded-xl flex items-center justify-center">
+                <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21L9 10.5M5 5v8a2 2 0 002 2h2m0 0v2a2 2 0 002 2h2m2-2a2 2 0 012-2V9a2 2 0 00-2-2H9" />
+                </svg>
+              </div>
+            </div>
+            
+            <h2 className="text-3xl font-semibold text-[#1D324D] mb-2">Iniciar Sesión</h2>
+            <p className="text-gray-600 text-sm">Ingresa tus credenciales para acceder al sistema</p>
           </div>
 
           {/* Form Card */}
-          <div className="bg-white/90 backdrop-blur-sm rounded-3xl p-8 shadow-2xl border border-white/50">
-            <form onSubmit={handleLogin} className="space-y-6">
+          <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100">
+            <form onSubmit={handleLogin} className="space-y-5">
               {/* Usuario Input */}
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-[#1D324D] opacity-80">Usuario</label>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Usuario</label>
                 <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                  </div>
                   <input
                     type="text"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    className="w-full px-4 py-4 bg-[#F1EADC]/30 border border-[#DFE4E4] rounded-2xl text-[#1D324D] placeholder-[#7C4935]/60 focus:outline-none focus:ring-2 focus:ring-[#457373] focus:border-transparent transition-all duration-300"
-                    placeholder="Ingresa tu usuario"
+                    className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#457373] focus:border-transparent transition-all duration-200"
+                    placeholder="tu_usuario"
                     required
                   />
                 </div>
               </div>
 
               {/* Contraseña Input */}
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-[#1D324D] opacity-80">Contraseña</label>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Contraseña</label>
                 <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                  </div>
                   <input
                     type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full px-4 py-4 pr-12 bg-[#F1EADC]/30 border border-[#DFE4E4] rounded-2xl text-[#1D324D] placeholder-[#7C4935]/60 focus:outline-none focus:ring-2 focus:ring-[#457373] focus:border-transparent transition-all duration-300"
-                    placeholder="Ingresa tu contraseña"
+                    className="w-full pl-10 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#457373] focus:border-transparent transition-all duration-200"
+                    placeholder="••••••••"
                     required
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 transform -translate-y-1/2 text-[#7C4935] hover:text-[#457373] focus:outline-none transition-colors duration-200"
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors duration-200"
                   >
                     {showPassword ? (
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -278,12 +292,12 @@ function App() {
 
               {/* Error Message */}
               {error && (
-                <div className="bg-red-50 border-l-4 border-red-400 p-4 rounded-r-xl">
-                  <div className="flex items-center">
-                    <svg className="w-5 h-5 text-red-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                  <div className="flex items-start gap-3">
+                    <svg className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    <p className="text-sm text-red-700">{error}</p>
+                    <p className="text-sm text-red-800">{error}</p>
                   </div>
                 </div>
               )}
@@ -292,15 +306,15 @@ function App() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-gradient-to-r from-[#1D324D] to-[#457373] text-white font-medium py-4 px-6 rounded-2xl hover:from-[#457373] hover:to-[#1D324D] focus:outline-none focus:ring-2 focus:ring-[#457373] focus:ring-offset-2 transform transition-all duration-300 hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none shadow-lg"
+                className="w-full bg-[#1D324D] text-white font-medium py-3 px-4 rounded-lg hover:bg-[#457373] focus:outline-none focus:ring-2 focus:ring-[#457373] focus:ring-offset-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
               >
                 {loading ? (
-                  <div className="flex items-center justify-center">
-                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <div className="flex items-center justify-center gap-2">
+                    <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    Accediendo...
+                    <span>Verificando...</span>
                   </div>
                 ) : (
                   'Iniciar Sesión'
@@ -310,9 +324,9 @@ function App() {
           </div>
 
           {/* Footer */}
-          <div className="text-center mt-6">
-            <p className="text-xs text-[#7C4935]/70 font-light">
-              Sistema seguro y confiable © 2024
+          <div className="mt-6 text-center">
+            <p className="text-xs text-gray-500">
+              Sistema de Gestión de Tickets © 2025
             </p>
           </div>
         </div>

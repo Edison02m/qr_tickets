@@ -501,10 +501,10 @@ ipcMain.handle('print-ticket', async (event, html) => {
         },
         title: 'Vista previa de impresión',
         closable: false,     // Deshabilitar el botón X de cerrar
-        minimizable: false,  // Deshabilitar minimizar
+        minimizable: true,   // Permitir minimizar
         maximizable: false,  // Deshabilitar maximizar
         autoHideMenuBar: true, // Ocultar barra de menú automáticamente
-        skipTaskbar: true    // No mostrar en la barra de tareas
+        skipTaskbar: false   // Mostrar en la barra de tareas para poder restaurar
       });
 
       // Remover completamente el menú de la ventana

@@ -66,96 +66,102 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
         return <DailySalesAdmin />;
       default:
         return (
-          <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl p-8 border border-white/50">
-            {/* Header Section */}
-            <div className="text-center mb-12">
-              <div className="w-16 h-1 bg-[#457373] mx-auto mb-6 rounded-full"></div>
-              <h2 className="text-3xl font-light text-[#1D324D] mb-3 tracking-tight">Panel de Control</h2>
-              <p className="text-[#7C4935] text-lg font-light">Selecciona una opción para comenzar</p>
+          <div className="space-y-6">
+            {/* Header minimalista */}
+            <div className="mb-8">
+              <h2 className="text-2xl font-light text-[#1D324D] mb-2">Panel de Control</h2>
+              <p className="text-sm text-[#1D324D]/60">Gestión administrativa del sistema</p>
             </div>
 
-            {/* Cards Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {/* Gestión de Usuarios */}
+            {/* Grid de tarjetas simplificado */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {/* Usuarios */}
               <button
-                className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 border border-[#DFE4E4]/50 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] group focus:outline-none focus:ring-2 focus:ring-[#457373]"
                 onClick={() => setCurrentView('users')}
+                className="group bg-white rounded-xl p-6 border border-gray-200 hover:border-[#457373] hover:shadow-md transition-all duration-200 text-left"
               >
-                <div className="flex flex-col items-center text-center">
-                  <div className="w-16 h-16 bg-gradient-to-br from-[#1D324D] to-[#457373] rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
-                    <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-lg bg-[#1D324D]/5 flex items-center justify-center group-hover:bg-[#1D324D] transition-colors duration-200">
+                    <svg className="w-6 h-6 text-[#1D324D] group-hover:text-white transition-colors duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                     </svg>
                   </div>
-                  <h3 className="text-lg font-medium text-[#1D324D] mb-2">Usuarios</h3>
-                  <p className="text-sm text-[#7C4935]/80 font-light">Gestiona usuarios del sistema</p>
+                  <div className="flex-1">
+                    <h3 className="text-base font-medium text-[#1D324D] mb-1">Usuarios</h3>
+                    <p className="text-sm text-[#1D324D]/60">Gestionar usuarios</p>
+                  </div>
                 </div>
               </button>
 
               {/* Tipos de Tickets */}
               <button
-                className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 border border-[#DFE4E4]/50 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] group focus:outline-none focus:ring-2 focus:ring-[#457373]"
                 onClick={() => setCurrentView('ticket-types')}
+                className="group bg-white rounded-xl p-6 border border-gray-200 hover:border-[#457373] hover:shadow-md transition-all duration-200 text-left"
               >
-                <div className="flex flex-col items-center text-center">
-                  <div className="w-16 h-16 bg-gradient-to-br from-[#457373] to-[#7C4935] rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
-                    <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21L9 10.5M5 5v8a2 2 0 002 2h2m0 0v2a2 2 0 002 2h2m2-2a2 2 0 012-2V9a2 2 0 00-2-2H9" />
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-lg bg-[#457373]/5 flex items-center justify-center group-hover:bg-[#457373] transition-colors duration-200">
+                    <svg className="w-6 h-6 text-[#457373] group-hover:text-white transition-colors duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
                     </svg>
                   </div>
-                  <h3 className="text-lg font-medium text-[#1D324D] mb-2">Tickets</h3>
-                  <p className="text-sm text-[#7C4935]/80 font-light">Administra tipos y precios</p>
+                  <div className="flex-1">
+                    <h3 className="text-base font-medium text-[#1D324D] mb-1">Tipos de Tickets</h3>
+                    <p className="text-sm text-[#1D324D]/60">Precios y categorías</p>
+                  </div>
                 </div>
               </button>
 
               {/* Puertas */}
               <button
-                className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 border border-[#DFE4E4]/50 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] group focus:outline-none focus:ring-2 focus:ring-[#457373]"
                 onClick={() => setCurrentView('puertas')}
+                className="group bg-white rounded-xl p-6 border border-gray-200 hover:border-[#457373] hover:shadow-md transition-all duration-200 text-left"
               >
-                <div className="flex flex-col items-center text-center">
-                  <div className="w-16 h-16 bg-gradient-to-br from-[#7C4935] to-[#457373] rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
-                    <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-lg bg-[#7C4935]/5 flex items-center justify-center group-hover:bg-[#7C4935] transition-colors duration-200">
+                    <svg className="w-6 h-6 text-[#7C4935] group-hover:text-white transition-colors duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
                     </svg>
                   </div>
-                  <h3 className="text-lg font-medium text-[#1D324D] mb-2">Puertas</h3>
-                  <p className="text-sm text-[#7C4935]/80 font-light">Administra puertas de acceso</p>
+                  <div className="flex-1">
+                    <h3 className="text-base font-medium text-[#1D324D] mb-1">Puertas</h3>
+                    <p className="text-sm text-[#1D324D]/60">Puntos de acceso</p>
+                  </div>
                 </div>
               </button>
 
-              {/* Reportes */}
+              {/* Ventas */}
               <button
-                className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 border border-[#DFE4E4]/50 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] group focus:outline-none focus:ring-2 focus:ring-[#457373]"
                 onClick={() => setCurrentView('daily-sales')}
+                className="group bg-white rounded-xl p-6 border border-gray-200 hover:border-[#457373] hover:shadow-md transition-all duration-200 text-left"
               >
-                <div className="flex flex-col items-center text-center">
-                  <div className="w-16 h-16 bg-gradient-to-br from-[#1D324D] to-[#7C4935] rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
-                    <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-lg bg-[#457373]/5 flex items-center justify-center group-hover:bg-[#457373] transition-colors duration-200">
+                    <svg className="w-6 h-6 text-[#457373] group-hover:text-white transition-colors duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
                     </svg>
                   </div>
-                  <h3 className="text-lg font-medium text-[#1D324D] mb-2">Reportes</h3>
-                  <p className="text-sm text-[#7C4935]/80 font-light">Estadísticas de ventas</p>
+                  <div className="flex-1">
+                    <h3 className="text-base font-medium text-[#1D324D] mb-1">Ventas</h3>
+                    <p className="text-sm text-[#1D324D]/60">Historial de ventas</p>
+                  </div>
                 </div>
               </button>
-            </div>
 
-            {/* Second Row - Cash Closure */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-6">
               {/* Cierres de Caja */}
               <button
-                className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 border border-[#DFE4E4]/50 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] group focus:outline-none focus:ring-2 focus:ring-[#457373]"
                 onClick={() => setCurrentView('cash-closure')}
+                className="group bg-white rounded-xl p-6 border border-gray-200 hover:border-[#457373] hover:shadow-md transition-all duration-200 text-left"
               >
-                <div className="flex flex-col items-center text-center">
-                  <div className="w-16 h-16 bg-gradient-to-br from-[#457373] to-[#1D324D] rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
-                    <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-lg bg-[#1D324D]/5 flex items-center justify-center group-hover:bg-[#1D324D] transition-colors duration-200">
+                    <svg className="w-6 h-6 text-[#1D324D] group-hover:text-white transition-colors duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                   </div>
-                  <h3 className="text-lg font-medium text-[#1D324D] mb-2">Caja</h3>
-                  <p className="text-sm text-[#7C4935]/80 font-light">Cierres y controles</p>
+                  <div className="flex-1">
+                    <h3 className="text-base font-medium text-[#1D324D] mb-1">Cierres de Caja</h3>
+                    <p className="text-sm text-[#1D324D]/60">Control de caja diario</p>
+                  </div>
                 </div>
               </button>
             </div>
@@ -165,46 +171,47 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#F1EADC] to-[#DFE4E4] flex flex-col">
-      {/* Header */}
-      <header className="bg-white/90 backdrop-blur-sm border-b border-[#DFE4E4]/30 shadow-sm">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      {/* Header minimalista */}
+      <header className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div className="flex items-center space-x-4">
-              <div className="w-2 h-8 bg-gradient-to-b from-[#457373] to-[#1D324D] rounded-full"></div>
-              <div>
-                <h1 className="text-lg font-medium text-[#1D324D] tracking-tight">Panel de Administrador</h1>
-                <p className="text-xs text-[#7C4935]/80 font-light">Hola, <span className="font-medium text-[#1D324D]">{user.nombre}</span></p>
-              </div>
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center gap-3">
+              <h1 className="text-lg font-medium text-[#1D324D]">Administración</h1>
+              <span className="text-sm text-gray-400">•</span>
+              <span className="text-sm text-gray-600">{user.nombre}</span>
             </div>
-            <div className="flex items-center space-x-2">
-              {currentView !== 'main' && (
+            <div className="flex items-center gap-2">
+              {currentView !== 'main' ? (
                 <button
                   onClick={() => setCurrentView('main')}
-                  className="p-2.5 bg-[#F1EADC]/50 text-[#1D324D] rounded-xl hover:bg-[#F1EADC] hover:scale-[1.05] transition-all duration-300 border border-white/50 group"
+                  className="px-4 py-2 text-sm text-gray-600 hover:text-[#1D324D] hover:bg-gray-100 rounded-lg transition-colors duration-150 flex items-center gap-2"
                   title="Volver al inicio"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 group-hover:scale-110 transition-transform duration-200" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
                   </svg>
+                  Regresar
+                </button>
+              ) : (
+                <button
+                  onClick={onLogout}
+                  className="px-4 py-2 text-sm text-gray-600 hover:text-[#1D324D] hover:bg-gray-100 rounded-lg transition-colors duration-150 flex items-center gap-2"
+                  title="Cerrar sesión"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clipRule="evenodd" />
+                  </svg>
+                  Cerrar sesión
                 </button>
               )}
-              <button
-                onClick={onLogout}
-                className="p-2.5 bg-gradient-to-r from-[#1D324D] to-[#457373] text-white rounded-xl hover:from-[#457373] hover:to-[#1D324D] hover:scale-[1.05] transition-all duration-300 shadow-lg group"
-                title="Cerrar sesión"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 group-hover:scale-110 transition-transform duration-200" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clipRule="evenodd" />
-                </svg>
-              </button>
             </div>
           </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 max-w-7xl mx-auto px-6 lg:px-8 py-8">
+      <main className="flex-1 max-w-7xl mx-auto px-6 lg:px-8 py-8 w-full">
         {renderContent()}
       </main>
     </div>

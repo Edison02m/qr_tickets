@@ -53,4 +53,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   ,updatePuerta: (data) => ipcRenderer.invoke('updatePuerta', data)
   ,togglePuertaStatus: (id, active) => ipcRenderer.invoke('togglePuertaStatus', id, active)
   ,deletePuerta: (id) => ipcRenderer.invoke('deletePuerta', id)
+
+  // Configuración del Relay X-410
+  ,getConfigRelay: () => ipcRenderer.invoke('getConfigRelay')
+  ,updateConfigRelay: (data) => ipcRenderer.invoke('updateConfigRelay', data)
 });

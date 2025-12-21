@@ -42,10 +42,14 @@ declare global {
   // Puertas/Ubicaciones
   getPuertas: () => Promise<any[]>;
   getActivePuertas: () => Promise<any[]>;
-  createPuerta: (data: { nombre: string; codigo: string; descripcion?: string }) => Promise<any>;
-  updatePuerta: (data: { id: number; nombre: string; codigo: string; descripcion?: string }) => Promise<any>;
+  createPuerta: (data: { nombre: string; codigo: string; descripcion?: string; lector_ip?: string; lector_port?: number; relay_number?: number; tiempo_apertura_segundos?: number }) => Promise<any>;
+  updatePuerta: (data: { id: number; nombre: string; codigo: string; descripcion?: string; lector_ip?: string; lector_port?: number; relay_number?: number; tiempo_apertura_segundos?: number }) => Promise<any>;
   togglePuertaStatus: (id: number, active: boolean) => Promise<any>;
   deletePuerta: (id: number) => Promise<any>;
+
+  // Configuración del Relay X-410
+  getConfigRelay: () => Promise<any>;
+  updateConfigRelay: (data: { ip: string; port: number; timeout: number; reintentos: number }) => Promise<any>;
     };
   }
 }

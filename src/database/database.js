@@ -351,6 +351,10 @@ class Database {
           nombre VARCHAR(100) NOT NULL UNIQUE,
           codigo VARCHAR(20) NOT NULL UNIQUE,
           descripcion TEXT,
+          lector_ip VARCHAR(15),
+          lector_port INTEGER DEFAULT 5000,
+          relay_number INTEGER CHECK(relay_number BETWEEN 1 AND 3),
+          tiempo_apertura_segundos INTEGER DEFAULT 5 CHECK(tiempo_apertura_segundos BETWEEN 1 AND 60),
           activo BOOLEAN DEFAULT 1,
           fecha_creacion TIMESTAMP DEFAULT (datetime('now', 'localtime'))
         )
@@ -413,9 +417,69 @@ class Database {
         )
       `);
 
+      // Tabla de configuración del relay X-410
+      this.db.run(`
+        CREATE TABLE IF NOT EXISTS config_relay (
+          id INTEGER PRIMARY KEY CHECK (id = 1),
+          ip VARCHAR(15) NOT NULL DEFAULT '192.168.3.200',
+          port INTEGER NOT NULL DEFAULT 80,
+          timeout INTEGER NOT NULL DEFAULT 3000,
+          reintentos INTEGER NOT NULL DEFAULT 3,
+          fecha_actualizacion TIMESTAMP DEFAULT (datetime('now', 'localtime'))
+        )
+      `);
+
       // Insertar usuarios por defecto
       this.insertDefaultUsers();
       this.insertDefaultPuertas();
+      this.insertDefaultRelayConfig();
+      
+      // Ejecutar migraciones
+      this.runMigrations();
+    });
+  }
+
+  runMigrations() {
+    // Migración: Agregar columnas de configuración de relay a puertas existentes
+    this.db.all("PRAGMA table_info(puertas)", [], (err, columns) => {
+      if (err) {
+        console.error('Error checking puertas table schema:', err);
+        return;
+      }
+      
+      const columnNames = columns.map(col => col.name);
+      
+      // Agregar lector_ip si no existe
+      if (!columnNames.includes('lector_ip')) {
+        this.db.run("ALTER TABLE puertas ADD COLUMN lector_ip VARCHAR(15)", (err) => {
+          if (err) console.error('Error adding lector_ip column:', err);
+          else console.log('✓ Columna lector_ip agregada a puertas');
+        });
+      }
+      
+      // Agregar lector_port si no existe
+      if (!columnNames.includes('lector_port')) {
+        this.db.run("ALTER TABLE puertas ADD COLUMN lector_port INTEGER DEFAULT 5000", (err) => {
+          if (err) console.error('Error adding lector_port column:', err);
+          else console.log('✓ Columna lector_port agregada a puertas');
+        });
+      }
+      
+      // Agregar relay_number si no existe
+      if (!columnNames.includes('relay_number')) {
+        this.db.run("ALTER TABLE puertas ADD COLUMN relay_number INTEGER CHECK(relay_number BETWEEN 1 AND 3)", (err) => {
+          if (err) console.error('Error adding relay_number column:', err);
+          else console.log('✓ Columna relay_number agregada a puertas');
+        });
+      }
+      
+      // Agregar tiempo_apertura_segundos si no existe
+      if (!columnNames.includes('tiempo_apertura_segundos')) {
+        this.db.run("ALTER TABLE puertas ADD COLUMN tiempo_apertura_segundos INTEGER DEFAULT 5 CHECK(tiempo_apertura_segundos BETWEEN 1 AND 60)", (err) => {
+          if (err) console.error('Error adding tiempo_apertura_segundos column:', err);
+          else console.log('✓ Columna tiempo_apertura_segundos agregada a puertas');
+        });
+      }
     });
   }
 
@@ -453,6 +517,14 @@ class Database {
         WHERE NOT EXISTS (SELECT 1 FROM puertas WHERE codigo = ?)
       `, [puerta.nombre, puerta.codigo, puerta.descripcion, puerta.codigo]);
     });
+  }
+
+  insertDefaultRelayConfig() {
+    // Insertar configuración por defecto del relay X-410
+    this.db.run(`
+      INSERT OR IGNORE INTO config_relay (id, ip, port, timeout, reintentos)
+      VALUES (1, '192.168.3.200', 80, 3000, 3)
+    `);
   }
 
 
@@ -791,7 +863,7 @@ class Database {
   // Crear una nueva puerta
   createPuerta(data) {
     return new Promise((resolve, reject) => {
-      const { nombre, codigo, descripcion } = data;
+      const { nombre, codigo, descripcion, lector_ip, lector_port, relay_number, tiempo_apertura_segundos } = data;
       
       // Validaciones
       if (!nombre || nombre.trim() === '') {
@@ -808,9 +880,36 @@ class Database {
         return;
       }
       
+      // Validar IP del lector si se proporciona
+      if (lector_ip && !/^(\d{1,3}\.){3}\d{1,3}$/.test(lector_ip.trim())) {
+        reject(new Error('Formato de IP del lector inválido'));
+        return;
+      }
+      
+      // Validar número de relay si se proporciona
+      if (relay_number && (relay_number < 1 || relay_number > 3)) {
+        reject(new Error('El número de relay debe ser 1, 2 o 3'));
+        return;
+      }
+      
+      // Validar tiempo de apertura si se proporciona
+      if (tiempo_apertura_segundos && (tiempo_apertura_segundos < 1 || tiempo_apertura_segundos > 60)) {
+        reject(new Error('El tiempo de apertura debe estar entre 1 y 60 segundos'));
+        return;
+      }
+      
       this.db.run(
-        'INSERT INTO puertas (nombre, codigo, descripcion) VALUES (?, ?, ?)',
-        [nombre.trim(), codigo.trim().toUpperCase(), descripcion || null],
+        `INSERT INTO puertas (nombre, codigo, descripcion, lector_ip, lector_port, relay_number, tiempo_apertura_segundos) 
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [
+          nombre.trim(), 
+          codigo.trim().toUpperCase(), 
+          descripcion || null,
+          lector_ip ? lector_ip.trim() : null,
+          lector_port || 5000,
+          relay_number || null,
+          tiempo_apertura_segundos || 5
+        ],
         function(err) {
           if (err) {
             if (err.message && err.message.includes('UNIQUE')) {
@@ -828,6 +927,10 @@ class Database {
               nombre: nombre.trim(),
               codigo: codigo.trim().toUpperCase(),
               descripcion,
+              lector_ip: lector_ip ? lector_ip.trim() : null,
+              lector_port: lector_port || 5000,
+              relay_number: relay_number || null,
+              tiempo_apertura_segundos: tiempo_apertura_segundos || 5,
               activo: 1,
               fecha_creacion: getLocalDateTime()
             });
@@ -840,7 +943,7 @@ class Database {
   // Actualizar una puerta
   updatePuerta(data) {
     return new Promise((resolve, reject) => {
-      const { id, nombre, codigo, descripcion } = data;
+      const { id, nombre, codigo, descripcion, lector_ip, lector_port, relay_number, tiempo_apertura_segundos } = data;
       
       // Validaciones
       if (!nombre || nombre.trim() === '') {
@@ -857,9 +960,44 @@ class Database {
         return;
       }
       
+      // Validar IP del lector si se proporciona
+      if (lector_ip && lector_ip.trim() !== '' && !/^(\d{1,3}\.){3}\d{1,3}$/.test(lector_ip.trim())) {
+        reject(new Error('Formato de IP del lector inválido'));
+        return;
+      }
+      
+      // Validar número de relay si se proporciona
+      if (relay_number && (relay_number < 1 || relay_number > 3)) {
+        reject(new Error('El número de relay debe ser 1, 2 o 3'));
+        return;
+      }
+      
+      // Validar tiempo de apertura si se proporciona
+      if (tiempo_apertura_segundos && (tiempo_apertura_segundos < 1 || tiempo_apertura_segundos > 60)) {
+        reject(new Error('El tiempo de apertura debe estar entre 1 y 60 segundos'));
+        return;
+      }
+      
       this.db.run(
-        'UPDATE puertas SET nombre = ?, codigo = ?, descripcion = ? WHERE id = ?',
-        [nombre.trim(), codigo.trim().toUpperCase(), descripcion || null, id],
+        `UPDATE puertas SET 
+          nombre = ?, 
+          codigo = ?, 
+          descripcion = ?,
+          lector_ip = ?,
+          lector_port = ?,
+          relay_number = ?,
+          tiempo_apertura_segundos = ?
+         WHERE id = ?`,
+        [
+          nombre.trim(), 
+          codigo.trim().toUpperCase(), 
+          descripcion || null,
+          lector_ip ? lector_ip.trim() : null,
+          lector_port || 5000,
+          relay_number || null,
+          tiempo_apertura_segundos || 5,
+          id
+        ],
         (err) => {
           if (err) {
             if (err.message && err.message.includes('UNIQUE')) {
@@ -872,7 +1010,16 @@ class Database {
               reject(err);
             }
           } else {
-            resolve({ id, nombre: nombre.trim(), codigo: codigo.trim().toUpperCase(), descripcion });
+            resolve({ 
+              id, 
+              nombre: nombre.trim(), 
+              codigo: codigo.trim().toUpperCase(), 
+              descripcion,
+              lector_ip: lector_ip ? lector_ip.trim() : null,
+              lector_port: lector_port || 5000,
+              relay_number: relay_number || null,
+              tiempo_apertura_segundos: tiempo_apertura_segundos || 5
+            });
           }
         }
       );
@@ -926,6 +1073,97 @@ class Database {
                 else resolve({ success: true, wasDeactivated: false });
               }
             );
+          }
+        }
+      );
+    });
+  }
+
+  // ============================================
+  // MÉTODOS PARA CONFIGURACIÓN DEL RELAY X-410
+  // ============================================
+
+  // Obtener configuración del relay X-410
+  getConfigRelay() {
+    return new Promise((resolve, reject) => {
+      this.db.get(
+        'SELECT * FROM config_relay WHERE id = 1',
+        [],
+        (err, row) => {
+          if (err) {
+            reject(err);
+          } else if (row) {
+            resolve(row);
+          } else {
+            // Si no existe, crear configuración por defecto
+            this.db.run(
+              `INSERT INTO config_relay (id, ip, port, timeout, reintentos) 
+               VALUES (1, '192.168.3.200', 80, 3000, 3)`,
+              (err) => {
+                if (err) {
+                  reject(err);
+                } else {
+                  // Retornar configuración por defecto
+                  resolve({
+                    id: 1,
+                    ip: '192.168.3.200',
+                    port: 80,
+                    timeout: 3000,
+                    reintentos: 3,
+                    fecha_actualizacion: getLocalDateTime()
+                  });
+                }
+              }
+            );
+          }
+        }
+      );
+    });
+  }
+
+  // Actualizar configuración del relay X-410
+  updateConfigRelay(data) {
+    return new Promise((resolve, reject) => {
+      const { ip, port, timeout, reintentos } = data;
+      
+      // Validaciones
+      if (!ip || !/^(\d{1,3}\.){3}\d{1,3}$/.test(ip.trim())) {
+        reject(new Error('Formato de IP inválido'));
+        return;
+      }
+      
+      if (!port || port < 1 || port > 65535) {
+        reject(new Error('El puerto debe estar entre 1 y 65535'));
+        return;
+      }
+      
+      if (!timeout || timeout < 100 || timeout > 30000) {
+        reject(new Error('El timeout debe estar entre 100 y 30000 ms'));
+        return;
+      }
+      
+      if (!reintentos || reintentos < 1 || reintentos > 10) {
+        reject(new Error('Los reintentos deben estar entre 1 y 10'));
+        return;
+      }
+      
+      this.db.run(
+        `UPDATE config_relay 
+         SET ip = ?, port = ?, timeout = ?, reintentos = ?, fecha_actualizacion = datetime('now', 'localtime')
+         WHERE id = 1`,
+        [ip.trim(), port, timeout, reintentos],
+        (err) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve({
+              id: 1,
+              ip: ip.trim(),
+              port,
+              timeout,
+              reintentos,
+              fecha_actualizacion: getLocalDateTime()
+            });
           }
         }
       );

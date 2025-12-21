@@ -66,6 +66,13 @@ function setAdminMenu() {
             `);
           }
         }},
+        { label: 'Configuración del Relay', click: () => {
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.executeJavaScript(`
+              window.dispatchEvent(new CustomEvent('menu-action', { detail: 'config-relay' }));
+            `);
+          }
+        }},
         { type: 'separator' },
         { label: 'Cerrar Sesión', click: () => {
           if (mainWindow && !mainWindow.isDestroyed()) {
@@ -706,6 +713,28 @@ ipcMain.handle('deletePuerta', async (event, id) => {
     return await db.deletePuerta(id);
   } catch (error) {
     console.error('Error deleting puerta:', error);
+    throw error;
+  }
+});
+
+// ============================================
+// CONFIGURACIÓN DEL RELAY X-410
+// ============================================
+
+ipcMain.handle('getConfigRelay', async () => {
+  try {
+    return await db.getConfigRelay();
+  } catch (error) {
+    console.error('Error getting relay config:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('updateConfigRelay', async (event, data) => {
+  try {
+    return await db.updateConfigRelay(data);
+  } catch (error) {
+    console.error('Error updating relay config:', error);
     throw error;
   }
 });

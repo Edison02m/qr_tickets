@@ -315,6 +315,16 @@ const NuevaVenta: React.FC = () => {
           const impresionExitosa = await window.electronAPI.printTicket(documentoConScript);
 
           if (impresionExitosa) {
+            // Confirmar la impresión de cada ticket en la base de datos
+            try {
+              for (const ticket of ticketsVendidos) {
+                await window.electronAPI.confirmarImpresion(ticket.ventaId);
+              }
+            } catch (error) {
+              console.error('Error al confirmar impresión:', error);
+              // Continuar aunque falle la confirmación, ya están impresos
+            }
+
             // Mostrar notificación de éxito
             setNotification({
               show: true,

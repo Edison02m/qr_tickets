@@ -16,8 +16,10 @@ declare global {
       deleteTicketType: (id: number) => Promise<any>;
       toggleTicketTypeStatus: (id: number, active: boolean) => Promise<any>;
       createSale: (ticketTypeId: number, amount: number, qrCode: string, puertaCodigo?: string) => Promise<any>;
+      confirmarImpresion: (ventaId: number) => Promise<{ success: boolean; ventaId: number; ticketsActualizados: number }>;
       getDailySales: () => Promise<any[]>;
       getVendedorDailySummary: (fecha?: string) => Promise<any>;
+      getVendedorDailySummaryByUser: (userId: number, fecha?: string) => Promise<any>;
       printTicket: (html: string) => Promise<{ success: boolean }>;
 
       // CRUD usuarios
@@ -38,6 +40,7 @@ declare global {
   updateCashClosure: (data: { usuario_id: number; fecha_inicio: string; total_ventas: number; cantidad_tickets: number; detalle_tipos: string; }) => Promise<any>;
   upsertCashClosure: (data: { usuario_id: number; fecha_inicio: string; total_ventas: number; cantidad_tickets: number; detalle_tipos: string; }) => Promise<any>;
   getCashClosureByDateAndUser: (usuario_id: number, fecha_inicio: string) => Promise<any>;
+  getAllCashClosuresByDate: (fecha: string) => Promise<{ fecha: string; cierres: any[]; totales: { total_ventas: number; cantidad_tickets: number; cantidad_usuarios: number } }>;
 
   // Puertas/Ubicaciones
   getPuertas: () => Promise<any[]>;
@@ -81,19 +84,14 @@ function App() {
           handleLogout();
           break;
         case 'cash-closure':
-          console.log('Cierre de caja seleccionado');
           break;
         case 'users':
-          console.log('Gestión de usuarios seleccionada');
           break;
         case 'ticket-types':
-          console.log('Tipos de tickets seleccionados');
           break;
         case 'new-sale':
-          console.log('Nueva venta seleccionada');
           break;
         case 'daily-sales':
-          console.log('Ventas del día seleccionadas');
           break;
       }
     };

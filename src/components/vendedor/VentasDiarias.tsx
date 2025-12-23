@@ -51,7 +51,7 @@ const VentasDiarias: React.FC = () => {
   const formatearPrecio = (precio: number) => {
     return new Intl.NumberFormat('es-ES', {
       style: 'currency',
-      currency: 'EUR'
+      currency: 'USD'
     }).format(precio);
   };
 

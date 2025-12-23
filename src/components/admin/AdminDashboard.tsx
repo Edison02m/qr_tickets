@@ -67,7 +67,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
       case 'config-relay':
         return <ConfigRelayAdmin />;
       case 'cash-closure':
-        return <CashClosureAdmin userId={user.id} />;
+        return <CashClosureAdmin userId={user.id} userRole={user.rol} />;
       case 'daily-sales':
         return <DailySalesAdmin />;
       default:

@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   updateCashClosure: (data) => ipcRenderer.invoke('updateCashClosure', data),
   upsertCashClosure: (data) => ipcRenderer.invoke('upsertCashClosure', data),
   getCashClosureByDateAndUser: (usuario_id, fecha_inicio) => ipcRenderer.invoke('getCashClosureByDateAndUser', usuario_id, fecha_inicio),
+  getAllCashClosuresByDate: (fecha) => ipcRenderer.invoke('getAllCashClosuresByDate', fecha),
   // Authentication
   login: (credentials) => ipcRenderer.invoke('login', credentials),
   logout: () => ipcRenderer.invoke('logout'),
@@ -29,8 +30,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   deleteTicketType: (id) => ipcRenderer.invoke('deleteTicketType', id),
   // Ahora acepta el código QR y puerta_codigo generado en el frontend
   createSale: (ticketTypeId, amount, qrCode, puertaCodigo) => ipcRenderer.invoke('createSale', ticketTypeId, amount, qrCode, puertaCodigo),
+  confirmarImpresion: (ventaId) => ipcRenderer.invoke('confirmarImpresion', ventaId),
   getDailySales: () => ipcRenderer.invoke('getDailySales'),
   getVendedorDailySummary: (fecha) => ipcRenderer.invoke('getVendedorDailySummary', fecha),
+  getVendedorDailySummaryByUser: (userId, fecha) => ipcRenderer.invoke('getVendedorDailySummaryByUser', userId, fecha),
   // Printing system
   printTicket: (html) => ipcRenderer.invoke('print-ticket', html)
 

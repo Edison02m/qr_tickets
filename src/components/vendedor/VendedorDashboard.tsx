@@ -13,7 +13,10 @@ interface VendedorDashboardProps {
 }
 
 const VendedorDashboard: React.FC<VendedorDashboardProps> = ({ user, onLogout }) => {
-  const [currentView, setCurrentView] = useState<'main' | 'nueva-venta' | 'ventas-dia'>('main');
+  const [currentView, setCurrentView] = useState<'main' | 'nueva-venta' | 'ventas-dia' | 'cierre-caja'>('main');
+  
+  // Lazy load del componente CashClosureAdmin
+  const CashClosureAdmin = require('../admin/CashClosureAdmin').default;
 
   useEffect(() => {
     const handleMenuAction = (event: CustomEvent<string>) => {
@@ -23,6 +26,9 @@ const VendedorDashboard: React.FC<VendedorDashboardProps> = ({ user, onLogout })
           break;
         case 'daily-sales':
           setCurrentView('ventas-dia');
+          break;
+        case 'cash-closure':
+          setCurrentView('cierre-caja');
           break;
       }
     };
@@ -47,6 +53,12 @@ const VendedorDashboard: React.FC<VendedorDashboardProps> = ({ user, onLogout })
             <VentasDiarias />
           </div>
         );
+      case 'cierre-caja':
+        return (
+          <div className="w-full h-full">
+            <CashClosureAdmin userId={user.id} userRole={user.rol} />
+          </div>
+        );
       default:
         return (
           <div className="space-y-6">
@@ -57,7 +69,7 @@ const VendedorDashboard: React.FC<VendedorDashboardProps> = ({ user, onLogout })
             </div>
 
             {/* Grid de tarjetas simplificado */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {/* Nueva Venta */}
               <button
                 onClick={() => setCurrentView('nueva-venta')}
@@ -90,6 +102,24 @@ const VendedorDashboard: React.FC<VendedorDashboardProps> = ({ user, onLogout })
                   <div className="flex-1">
                     <h3 className="text-base font-medium text-[#1D324D] mb-1">Ventas del Día</h3>
                     <p className="text-sm text-[#1D324D]/60">Resumen de ventas</p>
+                  </div>
+                </div>
+              </button>
+
+              {/* Cierre de Caja */}
+              <button
+                onClick={() => setCurrentView('cierre-caja')}
+                className="group bg-white rounded-xl p-6 border border-gray-200 hover:border-[#7C4935] hover:shadow-md transition-all duration-200 text-left"
+              >
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-lg bg-[#7C4935]/5 flex items-center justify-center group-hover:bg-[#7C4935] transition-colors duration-200">
+                    <svg className="w-6 h-6 text-[#7C4935] group-hover:text-white transition-colors duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-base font-medium text-[#1D324D] mb-1">Cierre de Caja</h3>
+                    <p className="text-sm text-[#1D324D]/60">Gestionar cierres</p>
                   </div>
                 </div>
               </button>

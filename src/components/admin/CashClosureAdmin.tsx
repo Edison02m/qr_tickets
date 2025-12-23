@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 
 interface CashClosure {
   id: number;
+  usuario_id: number;
   usuario_nombre: string;
   usuario_usuario: string;
   fecha_inicio: string;
@@ -13,9 +14,20 @@ interface CashClosure {
 
 interface Props {
   userId?: number;
+  userRole?: string;
 }
 
-const CashClosureAdmin: React.FC<Props> = ({ userId }) => {
+const CashClosureAdmin: React.FC<Props> = ({ userId, userRole }) => {
+  // Determinar si es admin
+  const isAdmin = userRole === 'admin';
+  
+  // Para admin: selector de usuario para hacer cierres de otros
+  const [usuarios, setUsuarios] = useState<any[]>([]);
+  const [usuarioSeleccionado, setUsuarioSeleccionado] = useState<number>(userId || 1);
+  
+  // Para admin: cierres consolidados de la fecha
+  const [cierresConsolidados, setCierresConsolidados] = useState<any>(null);
+  
   // Paginación para el historial
   const [paginaActual, setPaginaActual] = useState(1);
   const pageSize = 5;
@@ -34,11 +46,24 @@ const CashClosureAdmin: React.FC<Props> = ({ userId }) => {
 
   useEffect(() => {
     fetchCierres();
+    // Si es admin, cargar lista de usuarios
+    if (isAdmin) {
+      fetchUsuarios();
+    }
     // Por defecto, fecha de hoy
     const hoy = new Date().toISOString().slice(0, 10);
     setFechaInicio(hoy);
     checkExistingClosure(hoy);
   }, []);
+
+  const fetchUsuarios = async () => {
+    try {
+      const data = await window.electronAPI.getUsers();
+      setUsuarios(data.filter((u: any) => u.activo === 1));
+    } catch (err) {
+      console.error('Error al cargar usuarios:', err);
+    }
+  };
 
   const fetchCierres = async () => {
     setLoading(true);
@@ -55,13 +80,20 @@ const CashClosureAdmin: React.FC<Props> = ({ userId }) => {
 
   const checkExistingClosure = async (fecha: string) => {
     try {
-      const closure = await window.electronAPI.getCashClosureByDateAndUser(userId || 1, fecha);
+      const userIdToCheck = isAdmin ? usuarioSeleccionado : (userId || 1);
+      const closure = await window.electronAPI.getCashClosureByDateAndUser(userIdToCheck, fecha);
       if (closure) {
         setExisteCierre(true);
         setCierreActual(closure);
       } else {
         setExisteCierre(false);
         setCierreActual(null);
+      }
+      
+      // Si es admin, también cargar cierres consolidados
+      if (isAdmin) {
+        const consolidado = await window.electronAPI.getAllCashClosuresByDate(fecha);
+        setCierresConsolidados(consolidado);
       }
     } catch (err) {
       console.error('Error al verificar cierre existente:', err);
@@ -72,31 +104,23 @@ const CashClosureAdmin: React.FC<Props> = ({ userId }) => {
   const fetchResumen = async (fecha: string) => {
     setError('');
     try {
-      // Obtener ventas y tickets no anulados SOLO del día seleccionado
-      const ventas = await window.electronAPI.getAllDailySales();
-      // Filtrar por fecha exacta y no anulados
-      const ventasFiltradas = ventas.filter(v => {
-        // v.fecha_venta puede venir como string, aseguramos formato yyyy-mm-dd
-        const ventaDate = v.fecha_venta.slice(0, 10);
-        return ventaDate === fecha && v.anulada === 0;
-      });
-      // Agrupar por tipo de ticket
-      const tipos: Record<string, { cantidad: number; total: number }> = {};
-      let cantidad_tickets = 0;
-      let total_ventas = 0;
-      ventasFiltradas.forEach(v => {
-        tipos[v.tipo_ticket] = tipos[v.tipo_ticket] || { cantidad: 0, total: 0 };
-        tipos[v.tipo_ticket].cantidad += 1;
-        tipos[v.tipo_ticket].total += v.ticket_precio;
-        cantidad_tickets += 1;
-        total_ventas += v.ticket_precio;
-      });
-      // Detalle tipos en formato texto
-      const detalle_tipos = Object.entries(tipos)
-        .map(([tipo, info]) => `${tipo}: ${info.cantidad} tickets, $${info.total.toFixed(2)}`)
-        .join(' | ');
-      setResumen({ total_ventas, cantidad_tickets, detalle_tipos });
+      const userIdToUse = isAdmin ? usuarioSeleccionado : (userId || 1);
+      
+      // Obtener resumen del vendedor
+      const summary = await window.electronAPI.getVendedorDailySummaryByUser(userIdToUse, fecha);
+      
+      if (summary && summary.detalle_por_tipo && summary.detalle_por_tipo.length > 0) {
+        const total_ventas = summary.total_ventas || 0;
+        const cantidad_tickets = summary.total_tickets || 0;
+        const detalle_tipos = summary.detalle_por_tipo
+          .map((tipo: any) => `${tipo.tipo_ticket}: ${tipo.cantidad_tickets} tickets, $${tipo.total_tipo.toFixed(2)}`)
+          .join(' | ');
+        setResumen({ total_ventas, cantidad_tickets, detalle_tipos });
+      } else {
+        setResumen({ total_ventas: 0, cantidad_tickets: 0, detalle_tipos: 'Sin ventas' });
+      }
     } catch (err) {
+      console.error('Error al calcular resumen:', err);
       setError('Error al calcular resumen');
     }
   };
@@ -105,7 +129,7 @@ const CashClosureAdmin: React.FC<Props> = ({ userId }) => {
     if (fechaInicio) {
       fetchResumen(fechaInicio);
     }
-  }, [fechaInicio]);
+  }, [fechaInicio, usuarioSeleccionado]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const nuevaFecha = e.target.value;
@@ -117,7 +141,7 @@ const CashClosureAdmin: React.FC<Props> = ({ userId }) => {
     e.preventDefault();
     setError('');
     try {
-      const usuario_id = userId || 1;
+      const usuario_id = isAdmin ? usuarioSeleccionado : (userId || 1);
       const result = await window.electronAPI.upsertCashClosure({
         usuario_id,
         fecha_inicio: fechaInicio,
@@ -139,6 +163,12 @@ const CashClosureAdmin: React.FC<Props> = ({ userId }) => {
       }
       
       await fetchCierres();
+      
+      // Si es admin, recargar cierres consolidados
+      if (isAdmin) {
+        const consolidado = await window.electronAPI.getAllCashClosuresByDate(fechaInicio);
+        setCierresConsolidados(consolidado);
+      }
     } catch (err) {
       setError('Error al procesar el cierre de caja');
       console.error('Error en handleCreateClosure:', err);
@@ -146,89 +176,113 @@ const CashClosureAdmin: React.FC<Props> = ({ userId }) => {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="mb-6">
-        <h2 className="text-2xl font-light text-[#1D324D] mb-2">Cierre de Caja</h2>
-        <p className="text-sm text-[#1D324D]/60">Gestión de cierres diarios</p>
+    <div className="space-y-4">
+      {/* Header - Compacto */}
+      <div className="mb-3">
+        <h2 className="text-xl font-semibold text-[#1D324D] mb-0.5">Cierre de Caja</h2>
+        <p className="text-xs text-[#1D324D]/60">Gestión de cierres diarios</p>
       </div>
 
       {/* Error message */}
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-          <div className="flex items-start gap-3">
-            <svg className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="bg-red-50 border border-red-200 rounded-md p-2">
+          <div className="flex items-start gap-2">
+            <svg className="w-4 h-4 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <p className="text-sm text-red-800">{error}</p>
+            <p className="text-xs text-red-800">{error}</p>
           </div>
         </div>
       )}
 
-      {/* Form Section - Minimalista */}
-      <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
-        <form onSubmit={handleCreateClosure} className="space-y-5">
-          {/* Fecha */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Fecha</label>
-            <input 
-              type="date" 
-              value={fechaInicio} 
-              onChange={handleInputChange} 
-              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#457373] focus:border-transparent transition-all duration-200" 
-              required 
-            />
+      {/* Form Section - Ultra Compacto */}
+      <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+        <form onSubmit={handleCreateClosure} className="space-y-3">
+          {/* Grid de 2 columnas para Usuario y Fecha */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {/* Selector de usuario (solo para admin) */}
+            {isAdmin && (
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Usuario</label>
+                <select
+                  value={usuarioSeleccionado}
+                  onChange={(e) => {
+                    const newUserId = parseInt(e.target.value);
+                    setUsuarioSeleccionado(newUserId);
+                    checkExistingClosure(fechaInicio);
+                    fetchResumen(fechaInicio);
+                  }}
+                  className="w-full px-2.5 py-1.5 text-sm bg-gray-50 border border-gray-200 rounded-md text-gray-900 focus:outline-none focus:ring-1 focus:ring-[#457373] focus:border-transparent"
+                >
+                  {usuarios.map(u => (
+                    <option key={u.id} value={u.id}>{u.nombre} ({u.usuario})</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            
+            {/* Fecha */}
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Fecha</label>
+              <input 
+                type="date" 
+                value={fechaInicio} 
+                onChange={handleInputChange} 
+                className="w-full px-2.5 py-1.5 text-sm bg-gray-50 border border-gray-200 rounded-md text-gray-900 focus:outline-none focus:ring-1 focus:ring-[#457373] focus:border-transparent" 
+                required 
+              />
+            </div>
           </div>
 
-          {/* Estado del cierre */}
+          {/* Estado del cierre - Compacto */}
           {existeCierre && cierreActual && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-              <div className="flex items-start gap-2">
-                <svg className="w-5 h-5 text-blue-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <div className="flex-1">
-                  <p className="text-sm text-blue-900 font-medium">Cierre ya registrado</p>
-                  <p className="text-xs text-blue-700 mt-0.5">
-                    {new Date(cierreActual.fecha_cierre || cierreActual.fecha_inicio).toLocaleString()}
-                  </p>
-                </div>
+            <div className="bg-blue-50 border border-blue-200 rounded-md p-2 flex items-center gap-2">
+              <svg className="w-4 h-4 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div>
+                <p className="text-xs text-blue-900 font-medium">Cierre ya registrado</p>
+                <p className="text-xs text-blue-600 font-mono">
+                  {new Date(cierreActual.fecha_cierre || cierreActual.fecha_inicio).toLocaleString('es-ES', { 
+                    month: '2-digit', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' 
+                  })}
+                </p>
               </div>
             </div>
           )}
 
-          {/* Resumen - Minimalista */}
-          <div className="border-t border-gray-200 pt-4">
-            <h3 className="text-sm font-medium text-gray-700 mb-3">Resumen</h3>
-            <div className="space-y-2.5">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Total</span>
-                <span className="text-lg font-semibold text-[#1D324D]">${resumen.total_ventas.toFixed(2)}</span>
+          {/* Resumen - Ultra Compacto */}
+          <div className="border-t border-gray-200 pt-2">
+            <h3 className="text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">Resumen</h3>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="bg-gray-50 rounded-md p-2 text-center">
+                <div className="text-xs text-gray-500 mb-0.5">Total</div>
+                <div className="text-base font-bold text-[#1D324D]">${resumen.total_ventas.toFixed(2)}</div>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Tickets</span>
-                <span className="text-lg font-semibold text-[#457373]">{resumen.cantidad_tickets}</span>
+              <div className="bg-gray-50 rounded-md p-2 text-center">
+                <div className="text-xs text-gray-500 mb-0.5">Tickets</div>
+                <div className="text-base font-bold text-[#457373]">{resumen.cantidad_tickets}</div>
               </div>
             </div>
           </div>
 
-          {/* Detalle - Minimalista */}
+          {/* Detalle - Ultra Compacto */}
           {resumen.detalle_tipos && (
-            <div className="border-t border-gray-200 pt-4">
-              <h3 className="text-sm font-medium text-gray-700 mb-3">Detalle</h3>
-              <div className="space-y-1.5">
+            <div className="border-t border-gray-200 pt-2">
+              <h3 className="text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">Detalle</h3>
+              <div className="bg-gray-50 rounded-md p-2 space-y-1">
                 {resumen.detalle_tipos.split(' | ').map((detalle, idx) => {
                   const match = detalle.match(/^(.*?): (\d+) tickets, \$(\d+\.\d{2})$/);
                   if (match) {
                     const [, tipo, cantidad, total] = match;
                     return (
-                      <div key={idx} className="flex justify-between items-center text-sm py-1.5">
-                        <div className="flex items-center gap-2">
-                          <span className="text-gray-700">{tipo}</span>
+                      <div key={idx} className="flex justify-between items-center text-xs">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-gray-700 font-medium">{tipo}</span>
                           <span className="text-gray-400">×</span>
-                          <span className="font-medium text-[#457373]">{cantidad}</span>
+                          <span className="font-semibold text-[#457373]">{cantidad}</span>
                         </div>
-                        <span className="font-medium text-gray-900">${total}</span>
+                        <span className="font-bold text-gray-900">${total}</span>
                       </div>
                     );
                   }
@@ -238,15 +292,103 @@ const CashClosureAdmin: React.FC<Props> = ({ userId }) => {
             </div>
           )}
 
-          {/* Botón */}
+          {/* Botón - Compacto */}
           <button 
             type="submit" 
-            className="w-full py-2.5 px-4 bg-[#1D324D] text-white text-sm font-medium rounded-lg hover:bg-[#457373] focus:outline-none focus:ring-2 focus:ring-[#457373] focus:ring-offset-2 transition-all duration-200 shadow-sm"
+            className="w-full py-2 px-3 bg-[#1D324D] text-white text-sm font-semibold rounded-md hover:bg-[#457373] focus:outline-none focus:ring-2 focus:ring-[#457373] focus:ring-offset-1 transition-all duration-200 shadow-sm"
           >
             {existeCierre ? 'Actualizar Cierre' : 'Guardar Cierre'}
           </button>
         </form>
       </div>
+
+      {/* Cierres consolidados del día (solo para admin) */}
+      {isAdmin && cierresConsolidados && cierresConsolidados.cierres.length > 0 && (
+        <div className="bg-white rounded-2xl p-5 border border-gray-200 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-base font-semibold text-[#1D324D] flex items-center gap-2">
+              <svg className="w-4 h-4 text-[#457373]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+              </svg>
+              Consolidado {new Date(fechaInicio).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+            </h3>
+            <div className="flex items-center gap-3 text-xs">
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[#457373]/10 rounded-lg">
+                <svg className="w-3.5 h-3.5 text-[#457373]" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />
+                </svg>
+                <span className="font-medium text-[#1D324D]">{cierresConsolidados.totales.cantidad_usuarios} usuarios</span>
+              </div>
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-green-50 rounded-lg">
+                <svg className="w-3.5 h-3.5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clipRule="evenodd" />
+                </svg>
+                <span className="font-semibold text-green-700">${cierresConsolidados.totales.total_ventas.toFixed(2)}</span>
+              </div>
+            </div>
+          </div>
+          
+          {/* Tabla compacta */}
+          <div className="overflow-hidden rounded-lg border border-gray-200">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Usuario</th>
+                  <th scope="col" className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Tickets</th>
+                  <th scope="col" className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                  <th scope="col" className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Hora</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-100">
+                {cierresConsolidados.cierres.map((cierre: any) => (
+                  <tr key={cierre.id} className="hover:bg-gray-50 transition-colors duration-150">
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-full bg-[#457373]/10 flex items-center justify-center flex-shrink-0">
+                          <span className="text-xs font-semibold text-[#457373]">
+                            {cierre.usuario_nombre.charAt(0).toUpperCase()}
+                          </span>
+                        </div>
+                        <span className="text-sm font-medium text-gray-900">{cierre.usuario_nombre}</span>
+                      </div>
+                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap text-center">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-[#457373]/10 text-[#457373]">
+                        {cierre.cantidad_tickets}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap text-right">
+                      <span className="text-sm font-semibold text-gray-900">${cierre.total_ventas.toFixed(2)}</span>
+                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap text-center">
+                      <span className="text-xs text-gray-500 font-mono">
+                        {new Date(cierre.fecha_cierre).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              {/* Fila de totales */}
+              <tfoot className="bg-gradient-to-r from-[#457373]/5 to-[#1D324D]/5">
+                <tr className="border-t-2 border-[#457373]/20">
+                  <td className="px-3 py-2.5 text-sm font-bold text-[#1D324D] uppercase">
+                    Total General
+                  </td>
+                  <td className="px-3 py-2.5 text-center">
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-sm font-bold bg-[#457373] text-white">
+                      {cierresConsolidados.totales.cantidad_tickets}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2.5 text-right">
+                    <span className="text-base font-bold text-[#1D324D]">${cierresConsolidados.totales.total_ventas.toFixed(2)}</span>
+                  </td>
+                  <td className="px-3 py-2.5"></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Historial de cierres */}
       <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">

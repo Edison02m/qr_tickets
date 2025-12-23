@@ -108,6 +108,39 @@ class Database {
     });
   }
 
+  // Obtener todos los cierres de todos los usuarios para una fecha específica (para admin)
+  getAllCashClosuresByDate(fecha) {
+    return new Promise((resolve, reject) => {
+      this.db.all(
+        `SELECT cc.*, u.nombre as usuario_nombre, u.usuario as usuario_usuario
+         FROM cierres_caja cc
+         JOIN usuarios u ON cc.usuario_id = u.id
+         WHERE date(cc.fecha_inicio) = date(?)
+         ORDER BY u.nombre ASC`,
+        [fecha],
+        (err, rows) => {
+          if (err) {
+            reject(err);
+          } else {
+            // Calcular totales consolidados
+            const totalVentas = rows.reduce((sum, row) => sum + parseFloat(row.total_ventas || 0), 0);
+            const totalTickets = rows.reduce((sum, row) => sum + parseInt(row.cantidad_tickets || 0), 0);
+            
+            resolve({
+              fecha: fecha,
+              cierres: rows,
+              totales: {
+                total_ventas: totalVentas,
+                cantidad_tickets: totalTickets,
+                cantidad_usuarios: rows.length
+              }
+            });
+          }
+        }
+      );
+    });
+  }
+
   // Crear o actualizar cierre de caja (upsert)
   upsertCashClosure({ usuario_id, fecha_inicio, total_ventas, cantidad_tickets, detalle_tipos }) {
     return new Promise(async (resolve, reject) => {
@@ -172,7 +205,7 @@ class Database {
         `SELECT v.id as venta_id, v.fecha_venta, v.total, v.anulada,
                 u.nombre as vendedor, u.usuario as vendedor_usuario,
                 t.id as ticket_id, t.codigo_qr, t.precio as ticket_precio, tt.nombre as tipo_ticket,
-                t.anulado, t.usado, t.fecha_uso, t.puerta_codigo
+                t.anulado, t.usado, t.fecha_uso, t.puerta_codigo, t.impreso, t.fecha_impresion
          FROM tickets t
          JOIN ventas v ON t.venta_id = v.id
          JOIN usuarios u ON v.usuario_id = u.id
@@ -481,6 +514,104 @@ class Database {
         });
       }
     });
+    
+    // Migración: Agregar columnas de impresión a tickets existentes
+    this.db.all("PRAGMA table_info(tickets)", [], (err, columns) => {
+      if (err) {
+        console.error('Error checking tickets table schema:', err);
+        return;
+      }
+      
+      const columnNames = columns.map(col => col.name);
+      
+      // Agregar impreso si no existe
+      if (!columnNames.includes('impreso')) {
+        this.db.run("ALTER TABLE tickets ADD COLUMN impreso BOOLEAN DEFAULT 0", (err) => {
+          if (err) console.error('Error adding impreso column:', err);
+          else console.log('✓ Columna impreso agregada a tickets');
+        });
+      }
+      
+      // Agregar fecha_impresion si no existe
+      if (!columnNames.includes('fecha_impresion')) {
+        this.db.run("ALTER TABLE tickets ADD COLUMN fecha_impresion TIMESTAMP", (err) => {
+          if (err) console.error('Error adding fecha_impresion column:', err);
+          else console.log('✓ Columna fecha_impresion agregada a tickets');
+        });
+      }
+    });
+
+    // Migración: Agregar UNIQUE constraint a cierres_caja para (usuario_id, fecha_inicio)
+    // SQLite no permite modificar constraints, así que recreamos la tabla
+    this.db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='cierres_caja'", [], (err, table) => {
+      if (err) {
+        console.error('Error checking cierres_caja table:', err);
+        return;
+      }
+      
+      if (table) {
+        // Verificar si ya existe el índice único
+        this.db.get("SELECT name FROM sqlite_master WHERE type='index' AND name='unique_usuario_fecha_cierre'", [], (err, index) => {
+          if (err) {
+            console.error('Error checking index:', err);
+            return;
+          }
+          
+          if (!index) {
+            console.log('Migrando tabla cierres_caja para agregar constraint UNIQUE(usuario_id, fecha_inicio)...');
+            
+            this.db.serialize(() => {
+              // Crear tabla temporal con el nuevo constraint
+              this.db.run(`
+                CREATE TABLE IF NOT EXISTS cierres_caja_new (
+                  id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  usuario_id INTEGER NOT NULL,
+                  fecha_inicio TIMESTAMP NOT NULL,
+                  fecha_cierre TIMESTAMP DEFAULT (datetime('now', 'localtime')),
+                  total_ventas DECIMAL(10,2) NOT NULL,
+                  cantidad_tickets INTEGER NOT NULL,
+                  detalle_tipos TEXT,
+                  FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
+                )
+              `);
+              
+              // Copiar datos existentes (eliminando duplicados si los hay, quedándose con el más reciente)
+              this.db.run(`
+                INSERT INTO cierres_caja_new (id, usuario_id, fecha_inicio, fecha_cierre, total_ventas, cantidad_tickets, detalle_tipos)
+                SELECT id, usuario_id, fecha_inicio, fecha_cierre, total_ventas, cantidad_tickets, detalle_tipos
+                FROM cierres_caja
+                WHERE id IN (
+                  SELECT MAX(id) 
+                  FROM cierres_caja 
+                  GROUP BY usuario_id, date(fecha_inicio)
+                )
+              `);
+              
+              // Eliminar tabla antigua
+              this.db.run('DROP TABLE cierres_caja');
+              
+              // Renombrar nueva tabla
+              this.db.run('ALTER TABLE cierres_caja_new RENAME TO cierres_caja', (err) => {
+                if (err) {
+                  console.error('Error al migrar cierres_caja:', err);
+                } else {
+                  console.log('✓ Tabla cierres_caja migrada con índice único');
+                  
+                  // Crear índice único en (usuario_id, date(fecha_inicio))
+                  this.db.run('CREATE UNIQUE INDEX unique_usuario_fecha_cierre ON cierres_caja(usuario_id, date(fecha_inicio))', (err) => {
+                    if (err) {
+                      console.error('Error al crear índice único:', err);
+                    } else {
+                      console.log('✓ Índice único creado: usuario_id + fecha');
+                    }
+                  });
+                }
+              });
+            });
+          }
+        });
+      }
+    });
   }
 
   insertDefaultUsers() {
@@ -630,6 +761,34 @@ class Database {
     });
   }
   
+  /**
+   * Marca uno o varios tickets como impresos
+   * @param {number} ventaId - ID de la venta cuyos tickets se marcarán como impresos
+   * @returns {Promise} Promesa que resuelve con el número de tickets actualizados
+   */
+  marcarTicketComoImpreso(ventaId) {
+    return new Promise((resolve, reject) => {
+      this.db.run(
+        `UPDATE tickets 
+         SET impreso = 1, 
+             fecha_impresion = datetime('now', 'localtime')
+         WHERE venta_id = ? AND impreso = 0`,
+        [ventaId],
+        function(err) {
+          if (err) {
+            console.error('Error al marcar ticket como impreso:', err);
+            reject(err);
+          } else {
+            resolve({ 
+              ventaId, 
+              ticketsActualizados: this.changes 
+            });
+          }
+        }
+      );
+    });
+  }
+  
   // Generar un código QR único
   generateUniqueQRCode() {
     const timestamp = Date.now();
@@ -679,6 +838,7 @@ class Database {
          WHERE v.usuario_id = ? 
            AND date(v.fecha_venta) = date(?)
            AND v.anulada = 0
+           AND t.impreso = 1
          GROUP BY tt.id, tt.nombre
          ORDER BY tt.nombre`,
         [userId, fechaConsulta],

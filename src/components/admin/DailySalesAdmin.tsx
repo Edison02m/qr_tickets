@@ -14,6 +14,8 @@ interface Venta {
   anulado: number;
   usado: number;
   fecha_uso?: string;
+  impreso: number;
+  fecha_impresion?: string;
 }
 
 const DailySalesAdmin: React.FC = () => {
@@ -340,7 +342,7 @@ const DailySalesAdmin: React.FC = () => {
                     <td className="px-6 py-4">
                       <div className="space-y-2">
                         {venta.tickets.map((t) => (
-                          <div key={t.ticket_id}>
+                          <div key={t.ticket_id} className="flex flex-col gap-1">
                             {/* Estado del ticket individual con iconos */}
                             {t.anulado ? (
                               <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-100 text-red-800 border border-red-200">
@@ -362,6 +364,22 @@ const DailySalesAdmin: React.FC = () => {
                                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                                 </svg>
                                 ACTIVO
+                              </span>
+                            )}
+                            {/* Estado de impresión */}
+                            {t.impreso === 1 ? (
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-purple-100 text-purple-800 border border-purple-200" title={t.fecha_impresion ? `Impreso el ${new Date(t.fecha_impresion).toLocaleString()}` : 'Impreso'}>
+                                <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M5 4v3H4a2 2 0 00-2 2v3a2 2 0 002 2h1v2a2 2 0 002 2h6a2 2 0 002-2v-2h1a2 2 0 002-2V9a2 2 0 00-2-2h-1V4a2 2 0 00-2-2H7a2 2 0 00-2 2zm8 0H7v3h6V4zm0 8H7v4h6v-4z" clipRule="evenodd" />
+                                </svg>
+                                IMPRESO
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-orange-100 text-orange-800 border border-orange-200">
+                                <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                                </svg>
+                                NO IMPRESO
                               </span>
                             )}
                           </div>

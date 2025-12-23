@@ -120,6 +120,13 @@ function setVendedorMenu() {
             `);
           }
         }},
+        { label: 'Cierre de Caja', click: () => {
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.executeJavaScript(`
+              window.dispatchEvent(new CustomEvent('menu-action', { detail: 'cash-closure' }));
+            `);
+          }
+        }},
         { type: 'separator' },
         { label: 'Cerrar Sesión', click: () => {
           if (mainWindow && !mainWindow.isDestroyed()) {
@@ -294,6 +301,17 @@ ipcMain.handle('getCashClosureByDateAndUser', async (event, usuario_id, fecha_in
     throw error;
   }
 });
+
+// IPC handler para obtener todos los cierres de una fecha específica (para admin)
+ipcMain.handle('getAllCashClosuresByDate', async (event, fecha) => {
+  try {
+    return await db.getAllCashClosuresByDate(fecha);
+  } catch (error) {
+    console.error('Error getting all cash closures by date:', error);
+    throw error;
+  }
+});
+
 // IPC handler para obtener todas las ventas del día (admin)
 ipcMain.handle('getAllDailySales', async () => {
   try {
@@ -450,6 +468,28 @@ ipcMain.handle('createSale', async (event, ticketTypeId, amount, qrCode, puertaC
   }
 });
 
+// Handler para confirmar que un ticket fue impreso
+ipcMain.handle('confirmarImpresion', async (event, ventaId) => {
+  try {
+    if (!currentUser) {
+      throw new Error('No hay usuario autenticado');
+    }
+
+    if (typeof ventaId !== 'number' || !ventaId) {
+      throw new Error('ID de venta inválido');
+    }
+
+    const result = await db.marcarTicketComoImpreso(ventaId);
+    return { 
+      success: true, 
+      ...result 
+    };
+  } catch (error) {
+    console.error('Error al confirmar impresión:', error);
+    throw error;
+  }
+});
+
 // Get daily sales for current user
 ipcMain.handle('getDailySales', async () => {
   try {
@@ -472,6 +512,23 @@ ipcMain.handle('getVendedorDailySummary', async (event, fecha = null) => {
     return await db.getVendedorDailySummary(currentUser.id, fecha);
   } catch (error) {
     console.error('Error getting vendor daily summary:', error);
+    throw error;
+  }
+});
+
+// IPC handler para obtener resumen de ventas de un usuario específico (para admin)
+ipcMain.handle('getVendedorDailySummaryByUser', async (event, userId, fecha = null) => {
+  try {
+    if (!currentUser) {
+      throw new Error('No hay usuario autenticado');
+    }
+    // Solo admin puede consultar ventas de otros usuarios
+    if (currentUser.rol !== 'admin' && currentUser.id !== userId) {
+      throw new Error('No autorizado para ver ventas de otros usuarios');
+    }
+    return await db.getVendedorDailySummary(userId, fecha);
+  } catch (error) {
+    console.error('Error getting vendor daily summary by user:', error);
     throw error;
   }
 });

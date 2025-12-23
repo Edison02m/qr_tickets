@@ -38,4 +38,25 @@ interface ConfigRelay {
   fecha_actualizacion: string;
 }
 
+interface BotonConfig {
+  id?: number;
+  input_numero: number;
+  tipo_ticket_id: number | null;
+  tipo_ticket_nombre?: string;
+  tipo_ticket_precio?: number;
+  cantidad: number;
+  descripcion: string;
+  activo: boolean;
+  fecha_creacion?: string;
+  fecha_actualizacion?: string;
+}
+
+interface BotonConfigRequest {
+  input_numero: number;
+  tipo_ticket_id: number;
+  cantidad: number;
+  descripcion?: string;
+  activo?: boolean;
+}
+
 export {};

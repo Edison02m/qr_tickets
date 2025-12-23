@@ -60,4 +60,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Configuración del Relay X-410
   ,getConfigRelay: () => ipcRenderer.invoke('getConfigRelay')
   ,updateConfigRelay: (data) => ipcRenderer.invoke('updateConfigRelay', data)
+
+  // Configuración de Botones de Impresión Automática
+  ,configurarBoton: (config) => ipcRenderer.invoke('configurarBoton', config)
+  ,obtenerConfigBotones: () => ipcRenderer.invoke('obtenerConfigBotones')
+  ,obtenerBotonPorInput: (input_numero) => ipcRenderer.invoke('obtenerBotonPorInput', input_numero)
+  ,desactivarBoton: (input_numero) => ipcRenderer.invoke('desactivarBoton', input_numero)
+  ,eliminarBoton: (input_numero) => ipcRenderer.invoke('eliminarBoton', input_numero)
 });

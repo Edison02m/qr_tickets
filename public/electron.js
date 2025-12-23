@@ -2,11 +2,23 @@ const { app, BrowserWindow, ipcMain, Menu } = require('electron');
 const path = require('path');
 const Database = require('../src/database/database');
 const AuthService = require('../src/services/authService');
+const axios = require('axios');
 
 // Keep a global reference of the window object
 let mainWindow;
 let db;
 let currentUser = null;
+
+/**
+ * Notifica a control-acceso-qr que recargue la configuración
+ */
+async function notificarRecargaConfig() {
+  try {
+    await axios.post('http://localhost:3002/api/config/reload', {}, { timeout: 2000 });
+  } catch (error) {
+    // Silencioso - control-acceso-qr puede no estar corriendo
+  }
+}
 
 // Menu configurations
 function setLoginMenu() {
@@ -749,7 +761,10 @@ ipcMain.handle('createPuerta', async (event, data) => {
 
 ipcMain.handle('updatePuerta', async (event, data) => {
   try {
-    return await db.updatePuerta(data);
+    const result = await db.updatePuerta(data);
+    // Notificar a control-acceso-qr para recargar config
+    notificarRecargaConfig();
+    return result;
   } catch (error) {
     console.error('Error updating puerta:', error);
     throw error;
@@ -758,7 +773,10 @@ ipcMain.handle('updatePuerta', async (event, data) => {
 
 ipcMain.handle('togglePuertaStatus', async (event, id, active) => {
   try {
-    return await db.togglePuertaStatus(id, active);
+    const result = await db.togglePuertaStatus(id, active);
+    // Notificar a control-acceso-qr para recargar config
+    notificarRecargaConfig();
+    return result;
   } catch (error) {
     console.error('Error toggling puerta status:', error);
     throw error;
@@ -767,7 +785,10 @@ ipcMain.handle('togglePuertaStatus', async (event, id, active) => {
 
 ipcMain.handle('deletePuerta', async (event, id) => {
   try {
-    return await db.deletePuerta(id);
+    const result = await db.deletePuerta(id);
+    // Notificar a control-acceso-qr para recargar config
+    notificarRecargaConfig();
+    return result;
   } catch (error) {
     console.error('Error deleting puerta:', error);
     throw error;
@@ -789,14 +810,339 @@ ipcMain.handle('getConfigRelay', async () => {
 
 ipcMain.handle('updateConfigRelay', async (event, data) => {
   try {
-    return await db.updateConfigRelay(data);
+    const result = await db.updateConfigRelay(data);
+    // Notificar a control-acceso-qr para recargar config
+    notificarRecargaConfig();
+    return result;
   } catch (error) {
     console.error('Error updating relay config:', error);
     throw error;
   }
 });
 
+// ==================== IPC HANDLERS PARA BOTONES DE IMPRESIÓN ====================
+
+/**
+ * Configurar un botón físico para impresión automática
+ */
+ipcMain.handle('configurarBoton', async (event, config) => {
+  try {
+    const resultado = await db.configurarBoton(config);
+    return resultado;
+  } catch (error) {
+    console.error('Error configurando botón:', error);
+    throw error;
+  }
+});
+
+/**
+ * Obtener todas las configuraciones de botones (incluye los 4 inputs)
+ */
+ipcMain.handle('obtenerConfigBotones', async () => {
+  try {
+    const configuraciones = await db.obtenerConfigBotones();
+    return configuraciones;
+  } catch (error) {
+    console.error('Error obteniendo configuraciones de botones:', error);
+    throw error;
+  }
+});
+
+/**
+ * Obtener configuración de un botón específico
+ */
+ipcMain.handle('obtenerBotonPorInput', async (event, input_numero) => {
+  try {
+    const boton = await db.obtenerBotonPorInput(input_numero);
+    return boton;
+  } catch (error) {
+    console.error(`Error obteniendo configuración del botón ${input_numero}:`, error);
+    throw error;
+  }
+});
+
+/**
+ * Desactivar un botón específico
+ */
+ipcMain.handle('desactivarBoton', async (event, input_numero) => {
+  try {
+    await db.desactivarBoton(input_numero);
+    return { success: true, message: `Botón ${input_numero} desactivado` };
+  } catch (error) {
+    console.error(`Error desactivando botón ${input_numero}:`, error);
+    throw error;
+  }
+});
+
+/**
+ * Eliminar configuración de un botón
+ */
+ipcMain.handle('eliminarBoton', async (event, input_numero) => {
+  try {
+    await db.eliminarBoton(input_numero);
+    return { success: true, message: `Configuración del botón ${input_numero} eliminada` };
+  } catch (error) {
+    console.error(`Error eliminando configuración del botón ${input_numero}:`, error);
+    throw error;
+  }
+});
+
+// ==================== SERVIDOR HTTP PARA RECIBIR TRIGGERS DE BOTONES ====================
+
+const express = require('express');
+const bodyParser = require('body-parser');
+const cors = require('cors');
+
+const httpApp = express();
+const HTTP_PORT = 3001;
+
+// Middleware
+httpApp.use(cors());
+httpApp.use(bodyParser.json());
+httpApp.use(bodyParser.urlencoded({ extended: true }));
+
+/**
+ * Endpoint para recibir triggers de botones físicos desde control-acceso-qr
+ * POST /api/botones/trigger
+ * Body: { input: number }
+ */
+httpApp.post('/api/botones/trigger', async (req, res) => {
+  const { input } = req.body;
+
+  try {
+    // Validar input
+    if (!input || input < 1 || input > 4) {
+      return res.status(400).json({
+        success: false,
+        error: 'Input inválido. Debe ser entre 1 y 4'
+      });
+    }
+
+    // Obtener configuración del botón
+    const config = await db.obtenerBotonPorInput(input);
+
+    if (!config) {
+      return res.status(404).json({
+        success: false,
+        error: `Input ${input} no está configurado`
+      });
+    }
+
+    if (!config.activo) {
+      return res.status(400).json({
+        success: false,
+        error: `Input ${input} está desactivado`
+      });
+    }
+
+    // Crear venta automática
+    const QRCode = require('qrcode');
+    const crypto = require('crypto');
+
+    const ventaId = Date.now(); // ID temporal basado en timestamp
+    const tickets = [];
+
+    // Generar tickets
+    for (let i = 0; i < config.cantidad; i++) {
+      const randomString = crypto.randomBytes(16).toString('hex');
+      const qrData = `TICKET-${ventaId}-${i + 1}-${randomString}`;
+      const qrCode = await QRCode.toDataURL(qrData);
+
+      tickets.push({
+        qrCode,
+        qrData,
+        tipoTicketId: config.tipo_ticket_id,
+        precio: config.tipo_ticket_precio
+      });
+    }
+
+    // Guardar venta en la base de datos
+    const usuarioSistema = 1;
+    const totalVenta = config.tipo_ticket_precio * config.cantidad;
+
+    // Crear la venta
+    const venta = await new Promise((resolve, reject) => {
+      db.db.run(
+        `INSERT INTO ventas (usuario_id, total, fecha_venta, anulada)
+         VALUES (?, ?, datetime('now', 'localtime'), 0)`,
+        [usuarioSistema, totalVenta],
+        function (err) {
+          if (err) reject(err);
+          else resolve({ id: this.lastID, total: totalVenta });
+        }
+      );
+    });
+
+    const ventaIdReal = venta.id;
+
+    // Insertar tickets en la base de datos
+    for (const ticket of tickets) {
+      await new Promise((resolve, reject) => {
+        db.db.run(
+          `INSERT INTO tickets (venta_id, tipo_ticket_id, codigo_qr, puerta_codigo, precio, fecha_creacion, anulado, usado, impreso)
+           VALUES (?, ?, ?, ?, ?, datetime('now', 'localtime'), 0, 0, 0)`,
+          [
+            ventaIdReal,
+            ticket.tipoTicketId,
+            ticket.qrData,
+            config.puerta_id ? `P${config.puerta_id}` : 'GENERAL',
+            ticket.precio
+          ],
+          function (err) {
+            if (err) reject(err);
+            else resolve({ ticketId: this.lastID });
+          }
+        );
+      });
+    }
+
+    // Log compacto en una línea
+    const ahora = new Date().toLocaleTimeString('es-ES');
+    console.log(`[${ahora}] IN${input}: ${config.tipo_ticket_nombre} x${config.cantidad} ($${totalVenta.toFixed(2)}) Venta#${ventaIdReal} - Impreso`);
+
+    // Marcar tickets como impresos (modo simulación)
+    try {
+      await db.marcarTicketComoImpreso(ventaIdReal);
+    } catch (err) {
+      console.error(`[${ahora}] Error marcando impresos:`, err.message);
+    }
+
+    // Enviar tickets a imprimir (para cuando tengas impresora física)
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      // Generar HTML para impresión
+      const ticketsHtml = tickets.map((ticket, index) => `
+        <div style="width: 80mm; margin: 0 auto; padding: 10mm; page-break-after: always;">
+          <div style="text-align: center; font-family: Arial, sans-serif;">
+            <h2 style="margin: 0 0 5mm 0; font-size: 18pt;">🎫 ${config.tipo_ticket_nombre}</h2>
+            <p style="margin: 2mm 0; font-size: 10pt; color: #666;">Ticket ${index + 1} de ${config.cantidad}</p>
+            <img src="${ticket.qrCode}" style="width: 40mm; height: 40mm; margin: 5mm 0;" />
+            <p style="margin: 2mm 0; font-size: 9pt; font-family: monospace;">${ticket.qrData.substring(0, 30)}...</p>
+            <div style="margin-top: 5mm; padding-top: 3mm; border-top: 2px dashed #ccc;">
+              <p style="margin: 1mm 0; font-size: 12pt;"><strong>Precio: $${ticket.precio.toFixed(2)}</strong></p>
+              <p style="margin: 1mm 0; font-size: 8pt; color: #999;">Venta #${ventaIdReal}</p>
+              <p style="margin: 1mm 0; font-size: 8pt; color: #999;">${new Date().toLocaleString('es-ES')}</p>
+              <p style="margin: 3mm 0 0 0; font-size: 7pt; color: #999;">🤖 Impresión automática - Input ${input}</p>
+            </div>
+          </div>
+        </div>
+      `).join('');
+
+      const fullHtml = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="UTF-8">
+          <title>Tickets - Venta ${ventaIdReal}</title>
+          <style>
+            @media print {
+              @page { margin: 0; }
+              body { margin: 0; padding: 0; }
+            }
+          </style>
+        </head>
+        <body>
+          ${ticketsHtml}
+        </body>
+        </html>
+      `;
+
+      /* 
+      // ============================================
+      // DESCOMENTAR CUANDO TENGAS IMPRESORA FÍSICA
+      // ============================================
+      try {
+        mainWindow.webContents.print(
+          {
+            silent: false, // Mostrar diálogo de impresión
+            printBackground: true,
+            margins: { marginType: 'none' }
+          },
+          async (success, errorType) => {
+            if (success) {
+              console.log(`[TRIGGER] ✅ Tickets impresos exitosamente`);
+              
+              // Marcar tickets como impresos
+              try {
+                await db.marcarTicketComoImpreso(ventaIdReal);
+                console.log(`[TRIGGER] ✅ Tickets marcados como impresos en la BD`);
+              } catch (err) {
+                console.error(`[TRIGGER] ❌ Error al marcar como impresos:`, err);
+              }
+            } else {
+              console.error(`[TRIGGER] ❌ Error al imprimir:`, errorType);
+            }
+          }
+        );
+      } catch (printError) {
+        console.error(`[TRIGGER] ❌ Error en impresión:`, printError);
+      }
+      */
+    }
+
+    // Responder al trigger
+    res.json({
+      success: true,
+      message: `Venta creada e impresión iniciada`,
+      data: {
+        ventaId: ventaIdReal,
+        input,
+        tipo_ticket: config.tipo_ticket_nombre,
+        cantidad: config.cantidad,
+        total: totalVenta,
+        tickets_generados: tickets.length
+      }
+    });
+
+  } catch (error) {
+    console.error(`[TRIGGER] Error procesando trigger:`, error);
+    res.status(500).json({
+      success: false,
+      error: 'Error interno al procesar el trigger',
+      details: error.message
+    });
+  }
+});
+
+// Health check endpoint
+httpApp.get('/api/health', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Servidor HTTP de qr_tickets activo',
+    port: HTTP_PORT,
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Iniciar servidor HTTP
+let httpServer;
+app.whenReady().then(() => {
+  const iniciarServidor = (puerto) => {
+    httpServer = httpApp.listen(puerto)
+      .on('listening', () => {
+        const ahora = new Date().toLocaleTimeString('es-ES');
+        console.log(`[${ahora}] HTTP :${puerto}`);
+      })
+      .on('error', (err) => {
+        if (err.code === 'EADDRINUSE') {
+          const ahora = new Date().toLocaleTimeString('es-ES');
+          console.log(`[${ahora}] Puerto ${puerto} ocupado, reintentando en 3s...`);
+          setTimeout(() => iniciarServidor(puerto), 3000);
+        } else {
+          console.error(`[${new Date().toLocaleTimeString('es-ES')}] Error servidor HTTP:`, err.message);
+        }
+      });
+  };
+  
+  iniciarServidor(HTTP_PORT);
+});
+
 app.on('before-quit', () => {
+  // Cerrar servidor HTTP
+  if (httpServer) {
+    httpServer.close();
+  }
+  
+  // Cerrar base de datos
   if (db) {
     db.close();
   }

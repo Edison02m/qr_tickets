@@ -34,6 +34,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
         case 'config-relay':
           setCurrentView('config-relay');
           break;
+        case 'config-botones':
+          setCurrentView('config-botones');
+          break;
         case 'cash-closure':
           setCurrentView('cash-closure');
           break;
@@ -55,6 +58,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
   // Importar componentes
   const DailySalesAdmin = require('./DailySalesAdmin').default;
   const CashClosureAdmin = require('./CashClosureAdmin').default;
+  const ConfigBotonesAdmin = require('./ConfigBotonesAdmin').default;
 
   const renderContent = () => {
     switch (currentView) {
@@ -66,6 +70,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
         return <PuertasAdmin />;
       case 'config-relay':
         return <ConfigRelayAdmin />;
+      case 'config-botones':
+        return <ConfigBotonesAdmin />;
       case 'cash-closure':
         return <CashClosureAdmin userId={user.id} userRole={user.rol} />;
       case 'daily-sales':
@@ -186,6 +192,24 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
                   <div className="flex-1">
                     <h3 className="text-base font-medium text-[#1D324D] mb-1">Cierres de Caja</h3>
                     <p className="text-sm text-[#1D324D]/60">Control de caja diario</p>
+                  </div>
+                </div>
+              </button>
+
+              {/* Botones de Impresión */}
+              <button
+                onClick={() => setCurrentView('config-botones')}
+                className="group bg-white rounded-xl p-6 border border-gray-200 hover:border-[#457373] hover:shadow-md transition-all duration-200 text-left"
+              >
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-lg bg-purple-500/5 flex items-center justify-center group-hover:bg-purple-500 transition-colors duration-200">
+                    <svg className="w-6 h-6 text-purple-500 group-hover:text-white transition-colors duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-base font-medium text-[#1D324D] mb-1">Botones de Impresión</h3>
+                    <p className="text-sm text-[#1D324D]/60">Configurar botones físicos</p>
                   </div>
                 </div>
               </button>

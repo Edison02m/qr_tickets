@@ -53,6 +53,13 @@ declare global {
   // Configuración del Relay X-410
   getConfigRelay: () => Promise<any>;
   updateConfigRelay: (data: { ip: string; port: number; timeout: number; reintentos: number }) => Promise<any>;
+
+  // Configuración de Botones de Impresión Automática
+  configurarBoton: (config: { input_numero: number; tipo_ticket_id: number; cantidad: number; descripcion?: string; activo?: boolean }) => Promise<any>;
+  obtenerConfigBotones: () => Promise<any[]>;
+  obtenerBotonPorInput: (input_numero: number) => Promise<any | null>;
+  desactivarBoton: (input_numero: number) => Promise<{ success: boolean; message: string }>;
+  eliminarBoton: (input_numero: number) => Promise<{ success: boolean; message: string }>;
     };
   }
 }

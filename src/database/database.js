@@ -25,7 +25,6 @@ function getDatabasePath() {
     // Buscar el archivo en las diferentes ubicaciones
     for (const dbPath of possiblePaths) {
       if (fs.existsSync(dbPath)) {
-        console.log(`Database found at: ${dbPath}`);
         return dbPath;
       }
     }
@@ -37,7 +36,6 @@ function getDatabasePath() {
     }
     
     const userDbPath = path.join(userDataPath, 'database.sqlite');
-    console.log(`Creating new database at: ${userDbPath}`);
     return userDbPath;
   }
 }
@@ -462,6 +460,26 @@ class Database {
         )
       `);
 
+      // Tabla de configuración de botones físicos para impresión automática
+      this.db.run(`
+        CREATE TABLE IF NOT EXISTS botones_tickets (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          input_numero INTEGER NOT NULL CHECK(input_numero BETWEEN 1 AND 4),
+          tipo_ticket_id INTEGER NOT NULL,
+          cantidad INTEGER NOT NULL DEFAULT 1 CHECK(cantidad > 0),
+          descripcion TEXT,
+          activo BOOLEAN DEFAULT 1,
+          fecha_creacion TIMESTAMP DEFAULT (datetime('now', 'localtime')),
+          fecha_actualizacion TIMESTAMP DEFAULT (datetime('now', 'localtime')),
+          FOREIGN KEY (tipo_ticket_id) REFERENCES tipos_ticket(id),
+          UNIQUE(input_numero)
+        )
+      `, (err) => {
+        if (err) {
+          console.error('Error creating botones_tickets table:', err);
+        }
+      });
+
       // Insertar usuarios por defecto
       this.insertDefaultUsers();
       this.insertDefaultPuertas();
@@ -486,7 +504,6 @@ class Database {
       if (!columnNames.includes('lector_ip')) {
         this.db.run("ALTER TABLE puertas ADD COLUMN lector_ip VARCHAR(15)", (err) => {
           if (err) console.error('Error adding lector_ip column:', err);
-          else console.log('✓ Columna lector_ip agregada a puertas');
         });
       }
       
@@ -494,7 +511,6 @@ class Database {
       if (!columnNames.includes('lector_port')) {
         this.db.run("ALTER TABLE puertas ADD COLUMN lector_port INTEGER DEFAULT 5000", (err) => {
           if (err) console.error('Error adding lector_port column:', err);
-          else console.log('✓ Columna lector_port agregada a puertas');
         });
       }
       
@@ -502,7 +518,6 @@ class Database {
       if (!columnNames.includes('relay_number')) {
         this.db.run("ALTER TABLE puertas ADD COLUMN relay_number INTEGER CHECK(relay_number BETWEEN 1 AND 3)", (err) => {
           if (err) console.error('Error adding relay_number column:', err);
-          else console.log('✓ Columna relay_number agregada a puertas');
         });
       }
       
@@ -510,7 +525,6 @@ class Database {
       if (!columnNames.includes('tiempo_apertura_segundos')) {
         this.db.run("ALTER TABLE puertas ADD COLUMN tiempo_apertura_segundos INTEGER DEFAULT 5 CHECK(tiempo_apertura_segundos BETWEEN 1 AND 60)", (err) => {
           if (err) console.error('Error adding tiempo_apertura_segundos column:', err);
-          else console.log('✓ Columna tiempo_apertura_segundos agregada a puertas');
         });
       }
     });
@@ -528,7 +542,6 @@ class Database {
       if (!columnNames.includes('impreso')) {
         this.db.run("ALTER TABLE tickets ADD COLUMN impreso BOOLEAN DEFAULT 0", (err) => {
           if (err) console.error('Error adding impreso column:', err);
-          else console.log('✓ Columna impreso agregada a tickets');
         });
       }
       
@@ -536,7 +549,6 @@ class Database {
       if (!columnNames.includes('fecha_impresion')) {
         this.db.run("ALTER TABLE tickets ADD COLUMN fecha_impresion TIMESTAMP", (err) => {
           if (err) console.error('Error adding fecha_impresion column:', err);
-          else console.log('✓ Columna fecha_impresion agregada a tickets');
         });
       }
     });
@@ -595,14 +607,10 @@ class Database {
                 if (err) {
                   console.error('Error al migrar cierres_caja:', err);
                 } else {
-                  console.log('✓ Tabla cierres_caja migrada con índice único');
-                  
                   // Crear índice único en (usuario_id, date(fecha_inicio))
                   this.db.run('CREATE UNIQUE INDEX unique_usuario_fecha_cierre ON cierres_caja(usuario_id, date(fecha_inicio))', (err) => {
                     if (err) {
                       console.error('Error al crear índice único:', err);
-                    } else {
-                      console.log('✓ Índice único creado: usuario_id + fecha');
                     }
                   });
                 }
@@ -1324,6 +1332,219 @@ class Database {
               reintentos,
               fecha_actualizacion: getLocalDateTime()
             });
+          }
+        }
+      );
+    });
+  }
+
+  // ==================== MÉTODOS CRUD PARA BOTONES_TICKETS ====================
+
+  /**
+   * Configurar un botón físico para impresión automática
+   * @param {Object} config - Configuración del botón
+   * @param {number} config.input_numero - Número del input (1-4)
+   * @param {number} config.tipo_ticket_id - ID del tipo de ticket a imprimir
+   * @param {number} config.cantidad - Cantidad de tickets a imprimir por pulso
+   * @param {string} config.descripcion - Descripción del botón
+   * @param {boolean} config.activo - Estado activo/inactivo
+   * @returns {Promise<Object>} Configuración guardada
+   */
+  configurarBoton(config) {
+    return new Promise((resolve, reject) => {
+      const { input_numero, tipo_ticket_id, cantidad = 1, descripcion = '', activo = 1 } = config;
+
+      // Validaciones
+      if (!input_numero || input_numero < 1 || input_numero > 4) {
+        reject(new Error('El número de input debe estar entre 1 y 4'));
+        return;
+      }
+
+      if (!tipo_ticket_id) {
+        reject(new Error('Debe seleccionar un tipo de ticket'));
+        return;
+      }
+
+      if (cantidad < 1) {
+        reject(new Error('La cantidad debe ser mayor a 0'));
+        return;
+      }
+
+      // Verificar que el tipo de ticket existe
+      this.db.get(
+        'SELECT id, nombre FROM tipos_ticket WHERE id = ? AND activo = 1',
+        [tipo_ticket_id],
+        (err, tipoTicket) => {
+          if (err) {
+            reject(err);
+            return;
+          }
+
+          if (!tipoTicket) {
+            reject(new Error('El tipo de ticket seleccionado no existe o está inactivo'));
+            return;
+          }
+
+          // Insertar o actualizar configuración
+          this.db.run(
+            `INSERT INTO botones_tickets (input_numero, tipo_ticket_id, cantidad, descripcion, activo, fecha_actualizacion)
+             VALUES (?, ?, ?, ?, ?, datetime('now', 'localtime'))
+             ON CONFLICT(input_numero) DO UPDATE SET
+               tipo_ticket_id = excluded.tipo_ticket_id,
+               cantidad = excluded.cantidad,
+               descripcion = excluded.descripcion,
+               activo = excluded.activo,
+               fecha_actualizacion = datetime('now', 'localtime')`,
+            [input_numero, tipo_ticket_id, cantidad, descripcion || '', activo ? 1 : 0],
+            function(err) {
+              if (err) {
+                reject(err);
+              } else {
+                // Obtener la configuración guardada
+                this.db.get(
+                  `SELECT b.*, t.nombre as tipo_ticket_nombre, t.precio as tipo_ticket_precio
+                   FROM botones_tickets b
+                   JOIN tipos_ticket t ON b.tipo_ticket_id = t.id
+                   WHERE b.input_numero = ?`,
+                  [input_numero],
+                  (err, boton) => {
+                    if (err) {
+                      reject(err);
+                    } else {
+                      resolve(boton);
+                    }
+                  }
+                );
+              }
+            }.bind(this)
+          );
+        }
+      );
+    });
+  }
+
+  /**
+   * Obtener todas las configuraciones de botones
+   * @returns {Promise<Array>} Array con las 4 configuraciones (incluye inputs sin configurar)
+   */
+  obtenerConfigBotones() {
+    return new Promise((resolve, reject) => {
+      // Obtener todas las configuraciones existentes
+      this.db.all(
+        `SELECT b.*, t.nombre as tipo_ticket_nombre, t.precio as tipo_ticket_precio
+         FROM botones_tickets b
+         LEFT JOIN tipos_ticket t ON b.tipo_ticket_id = t.id
+         ORDER BY b.input_numero`,
+        [],
+        (err, botones) => {
+          if (err) {
+            reject(err);
+          } else {
+            // Crear array con los 4 inputs (rellenar los que no están configurados)
+            const configuraciones = [];
+            for (let i = 1; i <= 4; i++) {
+              const boton = botones.find(b => b.input_numero === i);
+              if (boton) {
+                configuraciones.push(boton);
+              } else {
+                configuraciones.push({
+                  id: null,
+                  input_numero: i,
+                  tipo_ticket_id: null,
+                  tipo_ticket_nombre: null,
+                  tipo_ticket_precio: null,
+                  cantidad: 1,
+                  descripcion: '',
+                  activo: 0,
+                  fecha_creacion: null,
+                  fecha_actualizacion: null
+                });
+              }
+            }
+            resolve(configuraciones);
+          }
+        }
+      );
+    });
+  }
+
+  /**
+   * Obtener configuración de un botón específico por número de input
+   * @param {number} input_numero - Número del input (1-4)
+   * @returns {Promise<Object|null>} Configuración del botón o null si no existe
+   */
+  obtenerBotonPorInput(input_numero) {
+    return new Promise((resolve, reject) => {
+      if (!input_numero || input_numero < 1 || input_numero > 4) {
+        reject(new Error('El número de input debe estar entre 1 y 4'));
+        return;
+      }
+
+      this.db.get(
+        `SELECT b.*, t.nombre as tipo_ticket_nombre, t.precio as tipo_ticket_precio, t.puerta_id
+         FROM botones_tickets b
+         LEFT JOIN tipos_ticket t ON b.tipo_ticket_id = t.id
+         WHERE b.input_numero = ?`,
+        [input_numero],
+        (err, boton) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve(boton || null);
+          }
+        }
+      );
+    });
+  }
+
+  /**
+   * Desactivar un botón específico
+   * @param {number} input_numero - Número del input (1-4)
+   * @returns {Promise<void>}
+   */
+  desactivarBoton(input_numero) {
+    return new Promise((resolve, reject) => {
+      if (!input_numero || input_numero < 1 || input_numero > 4) {
+        reject(new Error('El número de input debe estar entre 1 y 4'));
+        return;
+      }
+
+      this.db.run(
+        `UPDATE botones_tickets 
+         SET activo = 0, fecha_actualizacion = datetime('now', 'localtime')
+         WHERE input_numero = ?`,
+        [input_numero],
+        function(err) {
+          if (err) {
+            reject(err);
+          } else {
+            resolve();
+          }
+        }
+      );
+    });
+  }
+
+  /**
+   * Eliminar configuración de un botón
+   * @param {number} input_numero - Número del input (1-4)
+   * @returns {Promise<void>}
+   */
+  eliminarBoton(input_numero) {
+    return new Promise((resolve, reject) => {
+      if (!input_numero || input_numero < 1 || input_numero > 4) {
+        reject(new Error('El número de input debe estar entre 1 y 4'));
+        return;
+      }
+
+      this.db.run(
+        'DELETE FROM botones_tickets WHERE input_numero = ?',
+        [input_numero],
+        function(err) {
+          if (err) {
+            reject(err);
+          } else {
+            resolve();
           }
         }
       );

@@ -6,6 +6,10 @@ interface ConfigRelay {
   port: number;
   timeout: number;
   reintentos: number;
+  modo_rele1: 'NA' | 'NC';
+  modo_rele2: 'NA' | 'NC';
+  modo_rele3: 'NA' | 'NC';
+  modo_rele4: 'NA' | 'NC';
   fecha_actualizacion: string;
 }
 
@@ -14,6 +18,10 @@ interface ConfigFormData {
   port: number;
   timeout: number;
   reintentos: number;
+  modo_rele1: 'NA' | 'NC';
+  modo_rele2: 'NA' | 'NC';
+  modo_rele3: 'NA' | 'NC';
+  modo_rele4: 'NA' | 'NC';
 }
 
 interface FormErrors {
@@ -35,6 +43,10 @@ const ConfigRelayAdmin: React.FC = () => {
     port: 80,
     timeout: 3000,
     reintentos: 3,
+    modo_rele1: 'NA',
+    modo_rele2: 'NA',
+    modo_rele3: 'NA',
+    modo_rele4: 'NA',
   });
   
   const [formErrors, setFormErrors] = useState<FormErrors>({});
@@ -55,6 +67,10 @@ const ConfigRelayAdmin: React.FC = () => {
           port: data.port,
           timeout: data.timeout,
           reintentos: data.reintentos,
+          modo_rele1: data.modo_rele1 || 'NA',
+          modo_rele2: data.modo_rele2 || 'NA',
+          modo_rele3: data.modo_rele3 || 'NA',
+          modo_rele4: data.modo_rele4 || 'NA',
         });
       }
     } catch (err) {
@@ -85,6 +101,14 @@ const ConfigRelayAdmin: React.FC = () => {
     if (formErrors[name as keyof FormErrors]) {
       setFormErrors(prev => ({ ...prev, [name]: undefined }));
     }
+  };
+
+  const handleSelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value,
+    }));
   };
 
   const validateForm = (): boolean => {
@@ -164,6 +188,10 @@ const ConfigRelayAdmin: React.FC = () => {
         port: config.port,
         timeout: config.timeout,
         reintentos: config.reintentos,
+        modo_rele1: config.modo_rele1 || 'NA',
+        modo_rele2: config.modo_rele2 || 'NA',
+        modo_rele3: config.modo_rele3 || 'NA',
+        modo_rele4: config.modo_rele4 || 'NA',
       });
       setFormErrors({});
       setError('');
@@ -242,6 +270,37 @@ const ConfigRelayAdmin: React.FC = () => {
             <div className="bg-white/60 rounded-xl p-3 border border-[#DFE4E4]/50">
               <div className="text-xs text-[#7C4935]/70 mb-1">Reintentos</div>
               <div className="text-sm font-semibold text-[#1D324D]">{config.reintentos}</div>
+            </div>
+          </div>
+          
+          {/* Modos de Relay */}
+          <div className="mt-4 pt-4 border-t border-[#DFE4E4]/50">
+            <h4 className="text-xs font-medium text-[#1D324D] mb-3">Modos de Relay</h4>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="bg-white/60 rounded-xl p-3 border border-[#DFE4E4]/50">
+                <div className="text-xs text-[#7C4935]/70 mb-1">Relay 1</div>
+                <div className={`text-sm font-semibold ${config.modo_rele1 === 'NC' ? 'text-orange-600' : 'text-[#1D324D]'}`}>
+                  {config.modo_rele1 === 'NC' ? 'NC (Cerrado)' : 'NA (Abierto)'}
+                </div>
+              </div>
+              <div className="bg-white/60 rounded-xl p-3 border border-[#DFE4E4]/50">
+                <div className="text-xs text-[#7C4935]/70 mb-1">Relay 2</div>
+                <div className={`text-sm font-semibold ${config.modo_rele2 === 'NC' ? 'text-orange-600' : 'text-[#1D324D]'}`}>
+                  {config.modo_rele2 === 'NC' ? 'NC (Cerrado)' : 'NA (Abierto)'}
+                </div>
+              </div>
+              <div className="bg-white/60 rounded-xl p-3 border border-[#DFE4E4]/50">
+                <div className="text-xs text-[#7C4935]/70 mb-1">Relay 3</div>
+                <div className={`text-sm font-semibold ${config.modo_rele3 === 'NC' ? 'text-orange-600' : 'text-[#1D324D]'}`}>
+                  {config.modo_rele3 === 'NC' ? 'NC (Cerrado)' : 'NA (Abierto)'}
+                </div>
+              </div>
+              <div className="bg-white/60 rounded-xl p-3 border border-[#DFE4E4]/50">
+                <div className="text-xs text-[#7C4935]/70 mb-1">Relay 4</div>
+                <div className={`text-sm font-semibold ${config.modo_rele4 === 'NC' ? 'text-orange-600' : 'text-[#1D324D]'}`}>
+                  {config.modo_rele4 === 'NC' ? 'NC (Cerrado)' : 'NA (Abierto)'}
+                </div>
+              </div>
             </div>
           </div>
           
@@ -360,6 +419,83 @@ const ConfigRelayAdmin: React.FC = () => {
               <p className="mt-1 text-xs text-[#7C4935]/70">
                 Cantidad de intentos antes de reportar error (1-10)
               </p>
+            </div>
+
+            {/* Separador */}
+            <div className="md:col-span-2 border-t border-[#DFE4E4]/50 my-4"></div>
+
+            {/* Título para modos de relay */}
+            <div className="md:col-span-2">
+              <h4 className="text-md font-medium text-[#1D324D] mb-1">Configuración de Modos de Relay</h4>
+              <p className="text-xs text-[#7C4935]/70">
+                Selecciona el modo de operación para cada relay del X-410. 
+                <strong> NA (Normalmente Abierto)</strong>: El relay está apagado en reposo. 
+                <strong> NC (Normalmente Cerrado)</strong>: El relay está encendido en reposo (más seguro).
+              </p>
+            </div>
+
+            {/* Modo Relay 1 */}
+            <div>
+              <label className="block text-sm font-medium text-[#1D324D] mb-2">
+                Modo Relay 1
+              </label>
+              <select
+                name="modo_rele1"
+                value={formData.modo_rele1}
+                onChange={handleSelectChange}
+                className="w-full px-4 py-3 bg-[#F1EADC]/30 border border-[#DFE4E4] rounded-xl text-[#1D324D] focus:outline-none focus:ring-2 focus:ring-[#457373] focus:border-transparent transition-all duration-300"
+              >
+                <option value="NA">NA - Normalmente Abierto</option>
+                <option value="NC">NC - Normalmente Cerrado</option>
+              </select>
+            </div>
+
+            {/* Modo Relay 2 */}
+            <div>
+              <label className="block text-sm font-medium text-[#1D324D] mb-2">
+                Modo Relay 2
+              </label>
+              <select
+                name="modo_rele2"
+                value={formData.modo_rele2}
+                onChange={handleSelectChange}
+                className="w-full px-4 py-3 bg-[#F1EADC]/30 border border-[#DFE4E4] rounded-xl text-[#1D324D] focus:outline-none focus:ring-2 focus:ring-[#457373] focus:border-transparent transition-all duration-300"
+              >
+                <option value="NA">NA - Normalmente Abierto</option>
+                <option value="NC">NC - Normalmente Cerrado</option>
+              </select>
+            </div>
+
+            {/* Modo Relay 3 */}
+            <div>
+              <label className="block text-sm font-medium text-[#1D324D] mb-2">
+                Modo Relay 3
+              </label>
+              <select
+                name="modo_rele3"
+                value={formData.modo_rele3}
+                onChange={handleSelectChange}
+                className="w-full px-4 py-3 bg-[#F1EADC]/30 border border-[#DFE4E4] rounded-xl text-[#1D324D] focus:outline-none focus:ring-2 focus:ring-[#457373] focus:border-transparent transition-all duration-300"
+              >
+                <option value="NA">NA - Normalmente Abierto</option>
+                <option value="NC">NC - Normalmente Cerrado</option>
+              </select>
+            </div>
+
+            {/* Modo Relay 4 */}
+            <div>
+              <label className="block text-sm font-medium text-[#1D324D] mb-2">
+                Modo Relay 4
+              </label>
+              <select
+                name="modo_rele4"
+                value={formData.modo_rele4}
+                onChange={handleSelectChange}
+                className="w-full px-4 py-3 bg-[#F1EADC]/30 border border-[#DFE4E4] rounded-xl text-[#1D324D] focus:outline-none focus:ring-2 focus:ring-[#457373] focus:border-transparent transition-all duration-300"
+              >
+                <option value="NA">NA - Normalmente Abierto</option>
+                <option value="NC">NC - Normalmente Cerrado</option>
+              </select>
             </div>
           </div>
 

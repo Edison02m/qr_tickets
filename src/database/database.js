@@ -384,7 +384,7 @@ class Database {
           descripcion TEXT,
           lector_ip VARCHAR(15),
           lector_port INTEGER DEFAULT 5000,
-          relay_number INTEGER CHECK(relay_number BETWEEN 1 AND 3),
+          relay_number INTEGER CHECK(relay_number BETWEEN 1 AND 4),
           tiempo_apertura_segundos INTEGER DEFAULT 5 CHECK(tiempo_apertura_segundos BETWEEN 1 AND 60),
           activo BOOLEAN DEFAULT 1,
           fecha_creacion TIMESTAMP DEFAULT (datetime('now', 'localtime'))
@@ -456,6 +456,10 @@ class Database {
           port INTEGER NOT NULL DEFAULT 80,
           timeout INTEGER NOT NULL DEFAULT 3000,
           reintentos INTEGER NOT NULL DEFAULT 3,
+          modo_rele1 VARCHAR(2) DEFAULT 'NA' CHECK(modo_rele1 IN ('NA', 'NC')),
+          modo_rele2 VARCHAR(2) DEFAULT 'NA' CHECK(modo_rele2 IN ('NA', 'NC')),
+          modo_rele3 VARCHAR(2) DEFAULT 'NA' CHECK(modo_rele3 IN ('NA', 'NC')),
+          modo_rele4 VARCHAR(2) DEFAULT 'NA' CHECK(modo_rele4 IN ('NA', 'NC')),
           fecha_actualizacion TIMESTAMP DEFAULT (datetime('now', 'localtime'))
         )
       `);
@@ -480,10 +484,27 @@ class Database {
         }
       });
 
-      // Insertar usuarios por defecto
-      this.insertDefaultUsers();
-      this.insertDefaultPuertas();
-      this.insertDefaultRelayConfig();
+      // Tabla de logs de configuración (historial de cambios del admin)
+      this.db.run(`
+        CREATE TABLE IF NOT EXISTS config_logs (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          accion VARCHAR(20) NOT NULL CHECK(accion IN ('crear', 'modificar', 'eliminar')),
+          tabla_afectada VARCHAR(50) NOT NULL CHECK(tabla_afectada IN ('puertas', 'config_relay', 'tipos_ticket', 'botones_tickets')),
+          registro_id INTEGER,
+          descripcion TEXT,
+          datos_anteriores TEXT,
+          datos_nuevos TEXT,
+          fecha_hora TIMESTAMP DEFAULT (datetime('now', 'localtime')),
+          ip_address VARCHAR(45)
+        )
+      `, (err) => {
+        if (err) {
+          console.error('Error creating config_logs table:', err);
+        }
+      });
+
+  // Insertar usuario admin por defecto
+  this.insertDefaultUsers();
       
       // Ejecutar migraciones
       this.runMigrations();
@@ -516,7 +537,7 @@ class Database {
       
       // Agregar relay_number si no existe
       if (!columnNames.includes('relay_number')) {
-        this.db.run("ALTER TABLE puertas ADD COLUMN relay_number INTEGER CHECK(relay_number BETWEEN 1 AND 3)", (err) => {
+        this.db.run("ALTER TABLE puertas ADD COLUMN relay_number INTEGER CHECK(relay_number BETWEEN 1 AND 4)", (err) => {
           if (err) console.error('Error adding relay_number column:', err);
         });
       }
@@ -525,6 +546,51 @@ class Database {
       if (!columnNames.includes('tiempo_apertura_segundos')) {
         this.db.run("ALTER TABLE puertas ADD COLUMN tiempo_apertura_segundos INTEGER DEFAULT 5 CHECK(tiempo_apertura_segundos BETWEEN 1 AND 60)", (err) => {
           if (err) console.error('Error adding tiempo_apertura_segundos column:', err);
+        });
+      }
+      
+      // Agregar modo_rele si no existe (NA = Normalmente Abierto, NC = Normalmente Cerrado)
+      if (!columnNames.includes('modo_rele')) {
+        this.db.run("ALTER TABLE puertas ADD COLUMN modo_rele VARCHAR(2) DEFAULT 'NA' CHECK(modo_rele IN ('NA', 'NC'))", (err) => {
+          if (err) console.error('Error adding modo_rele column:', err);
+        });
+      }
+    });
+    
+    // Migración: Agregar columnas de modo_rele a config_relay
+    this.db.all("PRAGMA table_info(config_relay)", [], (err, columns) => {
+      if (err) {
+        console.error('Error checking config_relay table schema:', err);
+        return;
+      }
+      
+      const columnNames = columns.map(col => col.name);
+      
+      // Agregar modo_rele1 si no existe
+      if (!columnNames.includes('modo_rele1')) {
+        this.db.run("ALTER TABLE config_relay ADD COLUMN modo_rele1 VARCHAR(2) DEFAULT 'NA' CHECK(modo_rele1 IN ('NA', 'NC'))", (err) => {
+          if (err) console.error('Error adding modo_rele1 column:', err);
+        });
+      }
+      
+      // Agregar modo_rele2 si no existe
+      if (!columnNames.includes('modo_rele2')) {
+        this.db.run("ALTER TABLE config_relay ADD COLUMN modo_rele2 VARCHAR(2) DEFAULT 'NA' CHECK(modo_rele2 IN ('NA', 'NC'))", (err) => {
+          if (err) console.error('Error adding modo_rele2 column:', err);
+        });
+      }
+      
+      // Agregar modo_rele3 si no existe
+      if (!columnNames.includes('modo_rele3')) {
+        this.db.run("ALTER TABLE config_relay ADD COLUMN modo_rele3 VARCHAR(2) DEFAULT 'NA' CHECK(modo_rele3 IN ('NA', 'NC'))", (err) => {
+          if (err) console.error('Error adding modo_rele3 column:', err);
+        });
+      }
+      
+      // Agregar modo_rele4 si no existe
+      if (!columnNames.includes('modo_rele4')) {
+        this.db.run("ALTER TABLE config_relay ADD COLUMN modo_rele4 VARCHAR(2) DEFAULT 'NA' CHECK(modo_rele4 IN ('NA', 'NC'))", (err) => {
+          if (err) console.error('Error adding modo_rele4 column:', err);
         });
       }
     });
@@ -620,6 +686,63 @@ class Database {
         });
       }
     });
+
+    // Migración: Verificar estructura de config_logs
+    this.db.all("PRAGMA table_info(config_logs)", [], (err, columns) => {
+      if (err) {
+        console.error('Error checking config_logs table schema:', err);
+        return;
+      }
+      
+      if (columns.length === 0) {
+        // La tabla no existe, se creará automáticamente arriba
+        return;
+      }
+
+      const columnNames = columns.map(col => col.name);
+      
+      // Verificar si tiene la columna fecha_hora
+      if (!columnNames.includes('fecha_hora')) {
+        console.log('Migrando tabla config_logs: recreando con estructura correcta...');
+        
+        this.db.serialize(() => {
+          // Respaldar datos si existen
+          this.db.run('ALTER TABLE config_logs RENAME TO config_logs_old');
+          
+          // Crear nueva tabla con estructura correcta
+          this.db.run(`
+            CREATE TABLE config_logs (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              accion VARCHAR(20) NOT NULL CHECK(accion IN ('crear', 'modificar', 'eliminar')),
+              tabla_afectada VARCHAR(50) NOT NULL CHECK(tabla_afectada IN ('puertas', 'config_relay', 'tipos_ticket', 'botones_tickets')),
+              registro_id INTEGER,
+              descripcion TEXT,
+              datos_anteriores TEXT,
+              datos_nuevos TEXT,
+              fecha_hora TIMESTAMP DEFAULT (datetime('now', 'localtime')),
+              ip_address VARCHAR(45)
+            )
+          `);
+          
+          // Copiar datos si la tabla antigua tenía una columna de fecha
+          this.db.run(`
+            INSERT INTO config_logs (id, accion, tabla_afectada, registro_id, descripcion, datos_anteriores, datos_nuevos, fecha_hora, ip_address)
+            SELECT id, accion, tabla_afectada, registro_id, descripcion, datos_anteriores, datos_nuevos, 
+                   COALESCE(fecha, timestamp, datetime('now', 'localtime')) as fecha_hora, ip_address
+            FROM config_logs_old
+          `, (err) => {
+            if (err) {
+              console.log('No se pudieron migrar datos de config_logs (tabla nueva)');
+              // Eliminar tabla antigua de todos modos
+              this.db.run('DROP TABLE IF EXISTS config_logs_old');
+            } else {
+              console.log('Datos migrados exitosamente a config_logs');
+              this.db.run('DROP TABLE config_logs_old');
+            }
+          });
+        });
+      }
+    });
   }
 
   insertDefaultUsers() {
@@ -634,36 +757,17 @@ class Database {
     `, [hashedAdminPassword]);
     
     // Insertar vendedor
-    this.db.run(`
-      INSERT OR IGNORE INTO usuarios (nombre, usuario, password, rol)
-      VALUES ('Vendedor Demo', 'vendedor', ?, 'vendedor')
-    `, [hashedVendedorPassword]);
+    // Nota: ya no insertamos usuarios de prueba automáticamente.
   }
 
   insertDefaultPuertas() {
-    // Insertar puertas por defecto
-    const puertasDefault = [
-      { nombre: 'Puerta Principal', codigo: 'A', descripcion: 'Entrada principal del evento' },
-      { nombre: 'Puerta VIP', codigo: 'VIP', descripcion: 'Acceso exclusivo VIP' },
-      { nombre: 'Puerta Norte', codigo: 'N', descripcion: 'Entrada norte' },
-      { nombre: 'Puerta Sur', codigo: 'S', descripcion: 'Entrada sur' }
-    ];
-
-    puertasDefault.forEach(puerta => {
-      this.db.run(`
-        INSERT OR IGNORE INTO puertas (nombre, codigo, descripcion)
-        SELECT ?, ?, ?
-        WHERE NOT EXISTS (SELECT 1 FROM puertas WHERE codigo = ?)
-      `, [puerta.nombre, puerta.codigo, puerta.descripcion, puerta.codigo]);
-    });
+    // No insertar puertas por defecto en entornos de producción.
+    return;
   }
 
   insertDefaultRelayConfig() {
-    // Insertar configuración por defecto del relay X-410
-    this.db.run(`
-      INSERT OR IGNORE INTO config_relay (id, ip, port, timeout, reintentos)
-      VALUES (1, '192.168.3.200', 80, 3000, 3)
-    `);
+    // No insertar configuración de relay por defecto automáticamente.
+    return;
   }
 
 
@@ -1031,6 +1135,7 @@ class Database {
   // Crear una nueva puerta
   createPuerta(data) {
     return new Promise((resolve, reject) => {
+      const self = this;
       const { nombre, codigo, descripcion, lector_ip, lector_port, relay_number, tiempo_apertura_segundos } = data;
       
       // Validaciones
@@ -1055,8 +1160,8 @@ class Database {
       }
       
       // Validar número de relay si se proporciona
-      if (relay_number && (relay_number < 1 || relay_number > 3)) {
-        reject(new Error('El número de relay debe ser 1, 2 o 3'));
+      if (relay_number && (relay_number < 1 || relay_number > 4)) {
+        reject(new Error('El número de relay debe ser 1, 2, 3 o 4'));
         return;
       }
       
@@ -1090,7 +1195,7 @@ class Database {
               reject(err);
             }
           } else {
-            resolve({
+            const datosNuevos = {
               id: this.lastID,
               nombre: nombre.trim(),
               codigo: codigo.trim().toUpperCase(),
@@ -1101,7 +1206,21 @@ class Database {
               tiempo_apertura_segundos: tiempo_apertura_segundos || 5,
               activo: 1,
               fecha_creacion: getLocalDateTime()
+            };
+
+            // Registrar log de creación
+            self.registrarLogConfig({
+              accion: 'crear',
+              tabla_afectada: 'puertas',
+              registro_id: datosNuevos.id,
+              descripcion: `Creación de puerta: ${datosNuevos.nombre}`,
+              datos_anteriores: null,
+              datos_nuevos: datosNuevos
+            }).catch(err => {
+              console.error('Error al registrar log de creación de puerta:', err);
             });
+
+            resolve(datosNuevos);
           }
         }
       );
@@ -1111,6 +1230,7 @@ class Database {
   // Actualizar una puerta
   updatePuerta(data) {
     return new Promise((resolve, reject) => {
+      const self = this;
       const { id, nombre, codigo, descripcion, lector_ip, lector_port, relay_number, tiempo_apertura_segundos } = data;
       
       // Validaciones
@@ -1135,8 +1255,8 @@ class Database {
       }
       
       // Validar número de relay si se proporciona
-      if (relay_number && (relay_number < 1 || relay_number > 3)) {
-        reject(new Error('El número de relay debe ser 1, 2 o 3'));
+      if (relay_number && (relay_number < 1 || relay_number > 4)) {
+        reject(new Error('El número de relay debe ser 1, 2, 3 o 4'));
         return;
       }
       
@@ -1146,51 +1266,75 @@ class Database {
         return;
       }
       
-      this.db.run(
-        `UPDATE puertas SET 
-          nombre = ?, 
-          codigo = ?, 
-          descripcion = ?,
-          lector_ip = ?,
-          lector_port = ?,
-          relay_number = ?,
-          tiempo_apertura_segundos = ?
-         WHERE id = ?`,
-        [
-          nombre.trim(), 
-          codigo.trim().toUpperCase(), 
-          descripcion || null,
-          lector_ip ? lector_ip.trim() : null,
-          lector_port || 5000,
-          relay_number || null,
-          tiempo_apertura_segundos || 5,
-          id
-        ],
-        (err) => {
-          if (err) {
-            if (err.message && err.message.includes('UNIQUE')) {
-              if (err.message.includes('codigo')) {
-                reject(new Error('Ya existe una puerta con ese código'));
+      // PASO 1: Obtener datos anteriores para el log
+      this.db.get('SELECT * FROM puertas WHERE id = ?', [id], (err, datosAnteriores) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+
+        // PASO 2: Actualizar la puerta
+        this.db.run(
+          `UPDATE puertas SET 
+            nombre = ?, 
+            codigo = ?, 
+            descripcion = ?,
+            lector_ip = ?,
+            lector_port = ?,
+            relay_number = ?,
+            tiempo_apertura_segundos = ?
+           WHERE id = ?`,
+          [
+            nombre.trim(), 
+            codigo.trim().toUpperCase(), 
+            descripcion || null,
+            lector_ip ? lector_ip.trim() : null,
+            lector_port || 5000,
+            relay_number || null,
+            tiempo_apertura_segundos || 5,
+            id
+          ],
+          (err) => {
+            if (err) {
+              if (err.message && err.message.includes('UNIQUE')) {
+                if (err.message.includes('codigo')) {
+                  reject(new Error('Ya existe una puerta con ese código'));
+                } else {
+                  reject(new Error('Ya existe una puerta con ese nombre'));
+                }
               } else {
-                reject(new Error('Ya existe una puerta con ese nombre'));
+                reject(err);
               }
             } else {
-              reject(err);
+              const datosNuevos = { 
+                id, 
+                nombre: nombre.trim(), 
+                codigo: codigo.trim().toUpperCase(), 
+                descripcion,
+                lector_ip: lector_ip ? lector_ip.trim() : null,
+                lector_port: lector_port || 5000,
+                relay_number: relay_number || null,
+                tiempo_apertura_segundos: tiempo_apertura_segundos || 5
+              };
+
+              // PASO 3: Registrar el log
+              self.registrarLogConfig({
+                accion: 'modificar',
+                tabla_afectada: 'puertas',
+                registro_id: id,
+                descripcion: `Modificación de puerta: ${nombre}`,
+                datos_anteriores: datosAnteriores,
+                datos_nuevos: datosNuevos
+              }).catch(err => {
+                // Log de error pero no rechazar la operación principal
+                console.error('Error al registrar log de modificación de puerta:', err);
+              });
+
+              resolve(datosNuevos);
             }
-          } else {
-            resolve({ 
-              id, 
-              nombre: nombre.trim(), 
-              codigo: codigo.trim().toUpperCase(), 
-              descripcion,
-              lector_ip: lector_ip ? lector_ip.trim() : null,
-              lector_port: lector_port || 5000,
-              relay_number: relay_number || null,
-              tiempo_apertura_segundos: tiempo_apertura_segundos || 5
-            });
           }
-        }
-      );
+        );
+      });
     });
   }
 
@@ -1211,39 +1355,78 @@ class Database {
   // Eliminar una puerta
   deletePuerta(id) {
     return new Promise((resolve, reject) => {
-      // Verificar si hay tipos de ticket usando esta puerta
-      this.db.get(
-        'SELECT COUNT(*) as count FROM tipos_ticket WHERE puerta_id = ?',
-        [id],
-        (err, row) => {
-          if (err) {
-            reject(err);
-            return;
-          }
-
-          if (row.count > 0) {
-            // Si hay tipos de ticket, solo desactivar
-            this.db.run(
-              'UPDATE puertas SET activo = 0 WHERE id = ?',
-              [id],
-              (err) => {
-                if (err) reject(err);
-                else resolve({ success: true, wasDeactivated: true });
-              }
-            );
-          } else {
-            // Si no hay tipos de ticket, eliminar
-            this.db.run(
-              'DELETE FROM puertas WHERE id = ?',
-              [id],
-              (err) => {
-                if (err) reject(err);
-                else resolve({ success: true, wasDeactivated: false });
-              }
-            );
-          }
+      const self = this;
+      // PASO 1: Obtener datos de la puerta antes de eliminar
+      this.db.get('SELECT * FROM puertas WHERE id = ?', [id], (err, datosAnteriores) => {
+        if (err) {
+          reject(err);
+          return;
         }
-      );
+
+        // Verificar si hay tipos de ticket usando esta puerta
+        this.db.get(
+          'SELECT COUNT(*) as count FROM tipos_ticket WHERE puerta_id = ?',
+          [id],
+          (err, row) => {
+            if (err) {
+              reject(err);
+              return;
+            }
+
+            if (row.count > 0) {
+              // Si hay tipos de ticket, solo desactivar
+              this.db.run(
+                'UPDATE puertas SET activo = 0 WHERE id = ?',
+                [id],
+                (err) => {
+                  if (err) {
+                    reject(err);
+                  } else {
+                    // Registrar log de desactivación
+                    self.registrarLogConfig({
+                      accion: 'modificar',
+                      tabla_afectada: 'puertas',
+                      registro_id: id,
+                      descripcion: `Desactivación de puerta: ${datosAnteriores.nombre} (tiene tipos de ticket asociados)`,
+                      datos_anteriores: datosAnteriores,
+                      datos_nuevos: { ...datosAnteriores, activo: 0 }
+                    }).catch(err => {
+                      console.error('Error al registrar log de desactivación de puerta:', err);
+                    });
+
+                    resolve({ success: true, wasDeactivated: true });
+                  }
+                }
+              );
+            } else {
+              // Si no hay tipos de ticket, eliminar
+              this.db.run(
+                'DELETE FROM puertas WHERE id = ?',
+                [id],
+                (err) => {
+                  if (err) {
+                    reject(err);
+                  } else {
+                    // Registrar log de eliminación
+                    self.registrarLogConfig({
+                      accion: 'eliminar',
+                      tabla_afectada: 'puertas',
+                      registro_id: id,
+                      descripcion: `Eliminación de puerta: ${datosAnteriores.nombre}`,
+                      datos_anteriores: datosAnteriores,
+                      datos_nuevos: null
+                    }).catch(err => {
+                      console.error('Error al registrar log de eliminación de puerta:', err);
+                    });
+
+                    resolve({ success: true, wasDeactivated: false });
+                  }
+                }
+              );
+            }
+          }
+        );
+      });
     });
   }
 
@@ -1292,7 +1475,17 @@ class Database {
   // Actualizar configuración del relay X-410
   updateConfigRelay(data) {
     return new Promise((resolve, reject) => {
-      const { ip, port, timeout, reintentos } = data;
+      const self = this;
+      const { 
+        ip, 
+        port, 
+        timeout, 
+        reintentos,
+        modo_rele1 = 'NA',
+        modo_rele2 = 'NA',
+        modo_rele3 = 'NA',
+        modo_rele4 = 'NA'
+      } = data;
       
       // Validaciones
       if (!ip || !/^(\d{1,3}\.){3}\d{1,3}$/.test(ip.trim())) {
@@ -1315,26 +1508,63 @@ class Database {
         return;
       }
       
-      this.db.run(
-        `UPDATE config_relay 
-         SET ip = ?, port = ?, timeout = ?, reintentos = ?, fecha_actualizacion = datetime('now', 'localtime')
-         WHERE id = 1`,
-        [ip.trim(), port, timeout, reintentos],
-        (err) => {
-          if (err) {
-            reject(err);
-          } else {
-            resolve({
-              id: 1,
-              ip: ip.trim(),
-              port,
-              timeout,
-              reintentos,
-              fecha_actualizacion: getLocalDateTime()
-            });
-          }
+      // Validar modos de relay
+      const validModes = ['NA', 'NC'];
+      if (!validModes.includes(modo_rele1) || !validModes.includes(modo_rele2) || 
+          !validModes.includes(modo_rele3) || !validModes.includes(modo_rele4)) {
+        reject(new Error('Los modos de relay deben ser NA o NC'));
+        return;
+      }
+      
+      // PASO 1: Obtener configuración anterior
+      this.db.get('SELECT * FROM config_relay WHERE id = 1', [], (err, datosAnteriores) => {
+        if (err) {
+          reject(err);
+          return;
         }
-      );
+
+        // PASO 2: Actualizar la configuración
+        this.db.run(
+          `UPDATE config_relay 
+           SET ip = ?, port = ?, timeout = ?, reintentos = ?, 
+               modo_rele1 = ?, modo_rele2 = ?, modo_rele3 = ?, modo_rele4 = ?,
+               fecha_actualizacion = datetime('now', 'localtime')
+           WHERE id = 1`,
+          [ip.trim(), port, timeout, reintentos, modo_rele1, modo_rele2, modo_rele3, modo_rele4],
+          (err) => {
+            if (err) {
+              reject(err);
+            } else {
+              const datosNuevos = {
+                id: 1,
+                ip: ip.trim(),
+                port,
+                timeout,
+                reintentos,
+                modo_rele1,
+                modo_rele2,
+                modo_rele3,
+                modo_rele4,
+                fecha_actualizacion: getLocalDateTime()
+              };
+
+              // PASO 3: Registrar log
+              self.registrarLogConfig({
+                accion: 'modificar',
+                tabla_afectada: 'config_relay',
+                registro_id: 1,
+                descripcion: 'Actualización de configuración del relay X-410',
+                datos_anteriores: datosAnteriores,
+                datos_nuevos: datosNuevos
+              }).catch(err => {
+                console.error('Error al registrar log de configuración del relay:', err);
+              });
+
+              resolve(datosNuevos);
+            }
+          }
+        );
+      });
     });
   }
 
@@ -1545,6 +1775,231 @@ class Database {
             reject(err);
           } else {
             resolve();
+          }
+        }
+      );
+    });
+  }
+
+  // ============================================================================
+  // LOGS DE CONFIGURACIÓN
+  // ============================================================================
+
+  /**
+   * Registrar un cambio en la configuración
+   * @param {Object} params
+   * @param {string} params.accion - 'crear', 'modificar' o 'eliminar'
+   * @param {string} params.tabla_afectada - 'puertas', 'config_relay', 'tipos_ticket', 'botones_tickets'
+   * @param {number} params.registro_id - ID del registro afectado
+   * @param {string} params.descripcion - Descripción del cambio
+   * @param {Object} params.datos_anteriores - Datos antes del cambio (JSON)
+   * @param {Object} params.datos_nuevos - Datos después del cambio (JSON)
+   * @param {string} params.ip_address - Dirección IP (opcional)
+   * @returns {Promise<number>} ID del log creado
+   */
+  registrarLogConfig({ accion, tabla_afectada, registro_id, descripcion, datos_anteriores, datos_nuevos, ip_address }) {
+    return new Promise((resolve, reject) => {
+      const accionesValidas = ['crear', 'modificar', 'eliminar'];
+      const tablasValidas = ['puertas', 'config_relay', 'tipos_ticket', 'botones_tickets'];
+
+      if (!accionesValidas.includes(accion)) {
+        reject(new Error(`Acción inválida. Debe ser: ${accionesValidas.join(', ')}`));
+        return;
+      }
+
+      if (!tablasValidas.includes(tabla_afectada)) {
+        reject(new Error(`Tabla inválida. Debe ser: ${tablasValidas.join(', ')}`));
+        return;
+      }
+
+      const datosAnterioresStr = datos_anteriores ? JSON.stringify(datos_anteriores) : null;
+      const datosNuevosStr = datos_nuevos ? JSON.stringify(datos_nuevos) : null;
+
+      this.db.run(
+        `INSERT INTO config_logs (accion, tabla_afectada, registro_id, descripcion, datos_anteriores, datos_nuevos, ip_address)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [accion, tabla_afectada, registro_id, descripcion, datosAnterioresStr, datosNuevosStr, ip_address],
+        function(err) {
+          if (err) {
+            reject(err);
+          } else {
+            resolve(this.lastID);
+          }
+        }
+      );
+    });
+  }
+
+  /**
+   * Obtener logs de configuración con filtros y paginación
+   * @param {Object} params
+   * @param {number} params.limit - Límite de registros
+   * @param {number} params.offset - Offset para paginación
+   * @param {string} params.tabla_afectada - Filtrar por tabla (opcional)
+   * @param {string} params.accion - Filtrar por acción (opcional)
+   * @param {string} params.fecha_desde - Filtrar desde fecha (opcional)
+   * @param {string} params.fecha_hasta - Filtrar hasta fecha (opcional)
+   * @returns {Promise<Array>} Lista de logs
+   */
+  obtenerLogsConfig({ limit = 100, offset = 0, tabla_afectada, accion, fecha_desde, fecha_hasta } = {}) {
+    return new Promise((resolve, reject) => {
+      let query = 'SELECT * FROM config_logs WHERE 1=1';
+      const params = [];
+
+      if (tabla_afectada) {
+        query += ' AND tabla_afectada = ?';
+        params.push(tabla_afectada);
+      }
+
+      if (accion) {
+        query += ' AND accion = ?';
+        params.push(accion);
+      }
+
+      if (fecha_desde) {
+        query += ' AND date(fecha_hora) >= date(?)';
+        params.push(fecha_desde);
+      }
+
+      if (fecha_hasta) {
+        query += ' AND date(fecha_hora) <= date(?)';
+        params.push(fecha_hasta);
+      }
+
+      query += ' ORDER BY fecha_hora DESC LIMIT ? OFFSET ?';
+      params.push(limit, offset);
+
+      this.db.all(query, params, (err, rows) => {
+        if (err) {
+          reject(err);
+        } else {
+          // Parsear JSON de datos
+          const logs = rows.map(row => ({
+            ...row,
+            datos_anteriores: row.datos_anteriores ? JSON.parse(row.datos_anteriores) : null,
+            datos_nuevos: row.datos_nuevos ? JSON.parse(row.datos_nuevos) : null
+          }));
+          resolve(logs);
+        }
+      });
+    });
+  }
+
+  /**
+   * Contar total de logs con filtros
+   * @param {Object} params - Mismos filtros que obtenerLogsConfig
+   * @returns {Promise<number>} Total de registros
+   */
+  contarLogsConfig({ tabla_afectada, accion, fecha_desde, fecha_hasta } = {}) {
+    return new Promise((resolve, reject) => {
+      let query = 'SELECT COUNT(*) as total FROM config_logs WHERE 1=1';
+      const params = [];
+
+      if (tabla_afectada) {
+        query += ' AND tabla_afectada = ?';
+        params.push(tabla_afectada);
+      }
+
+      if (accion) {
+        query += ' AND accion = ?';
+        params.push(accion);
+      }
+
+      if (fecha_desde) {
+        query += ' AND date(fecha_hora) >= date(?)';
+        params.push(fecha_desde);
+      }
+
+      if (fecha_hasta) {
+        query += ' AND date(fecha_hora) <= date(?)';
+        params.push(fecha_hasta);
+      }
+
+      this.db.get(query, params, (err, row) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(row.total);
+        }
+      });
+    });
+  }
+
+  /**
+   * Obtener estadísticas de logs
+   * @returns {Promise<Object>} Estadísticas de cambios
+   */
+  obtenerEstadisticasLogs() {
+    return new Promise((resolve, reject) => {
+      const query = `
+        SELECT 
+          tabla_afectada,
+          accion,
+          COUNT(*) as cantidad,
+          MAX(fecha_hora) as ultima_modificacion
+        FROM config_logs
+        GROUP BY tabla_afectada, accion
+        ORDER BY tabla_afectada, accion
+      `;
+
+      this.db.all(query, [], (err, rows) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(rows);
+        }
+      });
+    });
+  }
+
+  /**
+   * Limpiar logs antiguos (mantener solo los últimos N días)
+   * @param {number} dias - Número de días a mantener (por defecto 90)
+   * @returns {Promise<number>} Cantidad de registros eliminados
+   */
+  limpiarLogsAntiguos(dias = 90) {
+    return new Promise((resolve, reject) => {
+      const fechaLimite = new Date();
+      fechaLimite.setDate(fechaLimite.getDate() - dias);
+      const fechaLimiteStr = fechaLimite.toISOString().split('T')[0];
+
+      this.db.run(
+        'DELETE FROM config_logs WHERE date(fecha_hora) < date(?)',
+        [fechaLimiteStr],
+        function(err) {
+          if (err) {
+            reject(err);
+          } else {
+            resolve(this.changes);
+          }
+        }
+      );
+    });
+  }
+
+  /**
+   * Obtener historial de un registro específico
+   * @param {string} tabla - Nombre de la tabla
+   * @param {number} registro_id - ID del registro
+   * @returns {Promise<Array>} Historial de cambios
+   */
+  obtenerHistorialRegistro(tabla, registro_id) {
+    return new Promise((resolve, reject) => {
+      this.db.all(
+        `SELECT * FROM config_logs 
+         WHERE tabla_afectada = ? AND registro_id = ?
+         ORDER BY fecha_hora DESC`,
+        [tabla, registro_id],
+        (err, rows) => {
+          if (err) {
+            reject(err);
+          } else {
+            const logs = rows.map(row => ({
+              ...row,
+              datos_anteriores: row.datos_anteriores ? JSON.parse(row.datos_anteriores) : null,
+              datos_nuevos: row.datos_nuevos ? JSON.parse(row.datos_nuevos) : null
+            }));
+            resolve(logs);
           }
         }
       );

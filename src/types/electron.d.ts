@@ -59,4 +59,31 @@ interface BotonConfigRequest {
   activo?: boolean;
 }
 
+interface ConfigLog {
+  id: number;
+  accion: 'crear' | 'modificar' | 'eliminar';
+  tabla_afectada: 'puertas' | 'config_relay' | 'tipos_ticket' | 'botones_tickets';
+  registro_id: number;
+  descripcion: string;
+  datos_anteriores: any; // JSON object
+  datos_nuevos: any; // JSON object
+  fecha_hora: string;
+  ip_address?: string;
+}
+
+interface ConfigLogFiltros {
+  limit?: number;
+  offset?: number;
+  tabla?: string;
+  accion?: string;
+  fecha_desde?: string;
+  fecha_hasta?: string;
+}
+
+interface EstadisticaLog {
+  tabla_afectada: string;
+  accion: string;
+  total: number;
+}
+
 export {};

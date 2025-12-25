@@ -19,7 +19,7 @@ interface PuertaFormData {
   descripcion: string;
   lector_ip: string;
   lector_port: number;
-  relay_number: number | '';
+    relay_number: number | '';
   tiempo_apertura_segundos: number;
 }
 
@@ -214,11 +214,11 @@ const PuertasAdmin: React.FC = () => {
       }
     }
 
-    // Validar número de relay (opcional pero si se ingresa debe ser 1-3)
+    // Validar número de relay (opcional pero si se ingresa debe ser 1-4)
     if (formData.relay_number !== '' && formData.relay_number !== null) {
       const relayNum = Number(formData.relay_number);
-      if (isNaN(relayNum) || relayNum < 1 || relayNum > 3) {
-        errors.relay_number = 'El número de relay debe ser 1, 2 o 3';
+      if (isNaN(relayNum) || relayNum < 1 || relayNum > 4) {
+        errors.relay_number = 'El número de relay debe ser 1, 2, 3 o 4';
       } else {
         // Validar que el número de relay no esté siendo usado por otra puerta
         const relayEnUso = puertas.some(
@@ -587,6 +587,7 @@ const PuertasAdmin: React.FC = () => {
                       <option value="1">Relay 1</option>
                       <option value="2">Relay 2</option>
                       <option value="3">Relay 3</option>
+                      <option value="4">Relay 4</option>
                     </select>
                     {formErrors.relay_number && (
                       <p className="mt-1 text-xs text-red-500">{formErrors.relay_number}</p>

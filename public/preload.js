@@ -67,4 +67,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   ,obtenerBotonPorInput: (input_numero) => ipcRenderer.invoke('obtenerBotonPorInput', input_numero)
   ,desactivarBoton: (input_numero) => ipcRenderer.invoke('desactivarBoton', input_numero)
   ,eliminarBoton: (input_numero) => ipcRenderer.invoke('eliminarBoton', input_numero)
+
+  // Logs de configuración
+  ,obtenerConfigLogs: (filtros) => ipcRenderer.invoke('obtener-config-logs', filtros)
+  ,contarConfigLogs: (filtros) => ipcRenderer.invoke('contar-config-logs', filtros)
+  ,obtenerEstadisticasLogs: () => ipcRenderer.invoke('obtener-estadisticas-logs')
+  ,obtenerHistorialRegistro: (tabla, registro_id) => ipcRenderer.invoke('obtener-historial-registro', tabla, registro_id)
 });

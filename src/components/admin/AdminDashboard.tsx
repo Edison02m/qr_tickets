@@ -43,6 +43,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
         case 'daily-sales':
           setCurrentView('daily-sales');
           break;
+        case 'config-logs':
+          setCurrentView('config-logs');
+          break;
         default:
           setCurrentView('main');
       }
@@ -59,6 +62,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
   const DailySalesAdmin = require('./DailySalesAdmin').default;
   const CashClosureAdmin = require('./CashClosureAdmin').default;
   const ConfigBotonesAdmin = require('./ConfigBotonesAdmin').default;
+  const AdminConfigLogs = require('./AdminConfigLogs').default;
 
   const renderContent = () => {
     switch (currentView) {
@@ -76,6 +80,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
         return <CashClosureAdmin userId={user.id} userRole={user.rol} />;
       case 'daily-sales':
         return <DailySalesAdmin />;
+      case 'config-logs':
+        return <AdminConfigLogs />;
       default:
         return (
           <div className="space-y-6">
@@ -210,6 +216,24 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
                   <div className="flex-1">
                     <h3 className="text-base font-medium text-[#1D324D] mb-1">Botones de Impresión</h3>
                     <p className="text-sm text-[#1D324D]/60">Configurar botones físicos</p>
+                  </div>
+                </div>
+              </button>
+
+              {/* Historial de Configuración */}
+              <button
+                onClick={() => setCurrentView('config-logs')}
+                className="group bg-white rounded-xl p-6 border border-gray-200 hover:border-[#457373] hover:shadow-md transition-all duration-200 text-left"
+              >
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-lg bg-amber-500/5 flex items-center justify-center group-hover:bg-amber-500 transition-colors duration-200">
+                    <svg className="w-6 h-6 text-amber-500 group-hover:text-white transition-colors duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-base font-medium text-[#1D324D] mb-1">Historial de Configuración</h3>
+                    <p className="text-sm text-[#1D324D]/60">Logs de cambios del sistema</p>
                   </div>
                 </div>
               </button>

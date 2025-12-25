@@ -545,6 +545,43 @@ ipcMain.handle('getVendedorDailySummaryByUser', async (event, userId, fecha = nu
   }
 });
 
+// IPC handlers para logs de configuración
+ipcMain.handle('obtener-config-logs', async (event, filtros = {}) => {
+  try {
+    return await db.obtenerLogsConfig(filtros);
+  } catch (error) {
+    console.error('Error al obtener logs de configuración:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('contar-config-logs', async (event, filtros = {}) => {
+  try {
+    return await db.contarLogsConfig(filtros);
+  } catch (error) {
+    console.error('Error al contar logs de configuración:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('obtener-estadisticas-logs', async () => {
+  try {
+    return await db.obtenerEstadisticasLogs();
+  } catch (error) {
+    console.error('Error al obtener estadísticas de logs:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('obtener-historial-registro', async (event, tabla, registro_id) => {
+  try {
+    return await db.obtenerHistorialRegistro(tabla, registro_id);
+  } catch (error) {
+    console.error('Error al obtener historial de registro:', error);
+    throw error;
+  }
+});
+
 // App event handlers
 app.whenReady().then(createWindow);
 

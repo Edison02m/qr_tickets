@@ -9,6 +9,14 @@ interface TicketType {
   puerta_id?: number;
   puerta_nombre?: string;
   puerta_codigo?: string;
+  puertas?: Array<{
+    id: number;
+    nombre: string;
+    codigo: string;
+  }>;
+  puerta_ids?: string;
+  puerta_nombres?: string;
+  puerta_codigos?: string;
 }
 
 interface Puerta {
@@ -21,7 +29,7 @@ interface Puerta {
 interface TicketTypeFormData {
   nombre: string;
   precio: number;
-  puerta_id?: number;
+  puerta_ids: number[];
 }
 
 interface FormErrors {
@@ -29,13 +37,18 @@ interface FormErrors {
   precio?: string;
 }
 
-const TicketTypesAdmin: React.FC = () => {
+interface TicketTypesAdminProps {
+  onNavigateToPuertas?: () => void;
+}
+
+const TicketTypesAdmin: React.FC<TicketTypesAdminProps> = ({ onNavigateToPuertas }) => {
   const [ticketTypes, setTicketTypes] = useState<TicketType[]>([]);
   const [puertas, setPuertas] = useState<Puerta[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [formData, setFormData] = useState<TicketTypeFormData>({
     nombre: '',
     precio: 0,
+    puerta_ids: [],
   });
   const [formErrors, setFormErrors] = useState<FormErrors>({});
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -87,20 +100,43 @@ const TicketTypesAdmin: React.FC = () => {
   };
 
   const handleOpenDialog = (ticketType?: TicketType) => {
+    // Validar que haya puertas activas antes de abrir el diálogo
+    if (puertas.length === 0) {
+      const confirmacion = window.confirm(
+        'No hay puertas activas disponibles.\n\n' +
+        'Es necesario crear al menos una puerta antes de crear tipos de tickets.\n\n' +
+        '¿Desea ir a la página de Puertas ahora?'
+      );
+      
+      if (confirmacion && onNavigateToPuertas) {
+        // Redirigir a la página de puertas usando la función callback
+        onNavigateToPuertas();
+      }
+      return;
+    }
+
     if (ticketType) {
       const newFormData: TicketTypeFormData = {
         nombre: ticketType.nombre,
         precio: ticketType.precio,
+        puerta_ids: [],
       };
-      if (ticketType.puerta_id) {
-        newFormData.puerta_id = ticketType.puerta_id;
+      
+      // Extraer puerta_ids del tipo de ticket
+      if (ticketType.puertas && ticketType.puertas.length > 0) {
+        newFormData.puerta_ids = ticketType.puertas.map(p => p.id);
+      } else if (ticketType.puerta_id) {
+        // Compatibilidad con formato antiguo
+        newFormData.puerta_ids = [ticketType.puerta_id];
       }
+      
       setFormData(newFormData);
       setEditingId(ticketType.id);
     } else {
       setFormData({
         nombre: '',
         precio: 0,
+        puerta_ids: [],
       });
       setEditingId(null);
     }
@@ -110,7 +146,7 @@ const TicketTypesAdmin: React.FC = () => {
 
   const handleCloseDialog = () => {
     setIsDialogOpen(false);
-    setFormData({ nombre: '', precio: 0 });
+    setFormData({ nombre: '', precio: 0, puerta_ids: [] });
     setEditingId(null);
     setFormErrors({});
   };
@@ -129,22 +165,25 @@ const TicketTypesAdmin: React.FC = () => {
           [name]: numberValue,
         }));
       }
-    } else if (name === 'puerta_id') {
-      if (value) {
-        setFormData(prev => ({
-          ...prev,
-          puerta_id: parseInt(value),
-        }));
-      } else {
-        const { puerta_id, ...rest } = formData;
-        setFormData(rest);
-      }
     } else {
       setFormData(prev => ({
         ...prev,
         [name]: value,
       }));
     }
+  };
+  
+  const handlePuertaToggle = (puertaId: number) => {
+    setFormData(prev => {
+      const newPuertaIds = prev.puerta_ids.includes(puertaId)
+        ? prev.puerta_ids.filter(id => id !== puertaId)
+        : [...prev.puerta_ids, puertaId];
+      
+      return {
+        ...prev,
+        puerta_ids: newPuertaIds,
+      };
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -175,6 +214,12 @@ const TicketTypesAdmin: React.FC = () => {
     }
     if (isNaN(formData.precio)) {
       errors.precio = 'El precio debe ser un número válido';
+    }
+
+    // Validar puertas (ahora obligatorias)
+    if (formData.puerta_ids.length === 0) {
+      alert('Debe seleccionar al menos una puerta para el tipo de ticket');
+      return;
     }
 
     // If there are errors, show them and stop submission
@@ -234,6 +279,33 @@ const TicketTypesAdmin: React.FC = () => {
 
   return (
     <div className="space-y-8">
+      {/* Alerta si no hay puertas */}
+      {puertas.length === 0 && (
+        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-xl shadow-md">
+          <div className="flex items-start">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-yellow-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-yellow-700 font-medium">
+                No hay puertas configuradas
+              </p>
+              <p className="mt-1 text-sm text-yellow-600">
+                Es necesario crear al menos una puerta antes de poder crear tipos de tickets.{' '}
+                <button
+                  onClick={onNavigateToPuertas}
+                  className="font-semibold underline hover:text-yellow-800 transition-colors cursor-pointer"
+                >
+                  Ir a configurar puertas
+                </button>
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <div>
@@ -288,12 +360,24 @@ const TicketTypesAdmin: React.FC = () => {
                   </td>
                   <td className="px-8 py-6 whitespace-nowrap">
                     <div className="text-sm text-[#1D324D]">
-                      {type.puerta_nombre ? (
+                      {type.puertas && type.puertas.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {type.puertas.map(puerta => (
+                            <span 
+                              key={puerta.id}
+                              className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-[#457373]/20 text-[#457373]"
+                            >
+                              {puerta.nombre} ({puerta.codigo})
+                            </span>
+                          ))}
+                        </div>
+                      ) : type.puerta_nombre ? (
+                        // Compatibilidad con formato antiguo
                         <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-[#457373]/20 text-[#457373]">
                           {type.puerta_nombre} ({type.puerta_codigo})
                         </span>
                       ) : (
-                        <span className="text-[#7C4935]/60 italic">Sin puerta</span>
+                        <span className="text-[#7C4935]/60 italic">Sin puertas</span>
                       )}
                     </div>
                   </td>
@@ -389,23 +473,32 @@ const TicketTypesAdmin: React.FC = () => {
 
               <div>
                 <label className="block text-sm font-medium text-[#1D324D] mb-3">
-                  Puerta (Opcional)
+                  Puertas Autorizadas <span className="text-red-500">*</span>
                 </label>
-                <select
-                  name="puerta_id"
-                  value={formData.puerta_id || ''}
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-4 bg-[#F1EADC]/30 border border-[#DFE4E4] rounded-2xl text-[#1D324D] focus:outline-none focus:ring-2 focus:ring-[#457373] focus:border-transparent transition-all duration-300"
-                >
-                  <option value="">Sin puerta asignada</option>
-                  {puertas.map(puerta => (
-                    <option key={puerta.id} value={puerta.id}>
-                      {puerta.nombre} ({puerta.codigo})
-                    </option>
-                  ))}
-                </select>
+                <div className="space-y-2 max-h-48 overflow-y-auto p-4 bg-[#F1EADC]/20 border border-[#DFE4E4] rounded-2xl">
+                  {puertas.length === 0 ? (
+                    <p className="text-sm text-[#7C4935]/60 italic">No hay puertas configuradas</p>
+                  ) : (
+                    puertas.map(puerta => (
+                      <label 
+                        key={puerta.id}
+                        className="flex items-center space-x-3 p-2 hover:bg-[#457373]/10 rounded-xl cursor-pointer transition-colors duration-200"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={formData.puerta_ids.includes(puerta.id)}
+                          onChange={() => handlePuertaToggle(puerta.id)}
+                          className="w-4 h-4 text-[#457373] bg-[#F1EADC]/30 border-[#DFE4E4] rounded focus:ring-[#457373] focus:ring-2"
+                        />
+                        <span className="text-sm text-[#1D324D]">
+                          {puerta.nombre} <span className="text-[#7C4935]/70">({puerta.codigo})</span>
+                        </span>
+                      </label>
+                    ))
+                  )}
+                </div>
                 <p className="mt-2 text-xs text-[#7C4935]/60">
-                  Selecciona la puerta que abre este tipo de ticket
+                  <span className="text-red-500">*</span> Debe seleccionar al menos una puerta
                 </p>
               </div>
 

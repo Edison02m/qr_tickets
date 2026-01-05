@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 
 // Note: don't redeclare `window.electronAPI` here because other type
 // declarations in the project may already declare it. Instead access it
@@ -34,7 +34,7 @@ interface EstadisticaLog {
 
 const AdminConfigLogs: React.FC = () => {
   const [logs, setLogs] = useState<ConfigLog[]>([]);
-  const [filtros, setFiltros] = useState<ConfigLogFiltros>({
+  const [, setFiltros] = useState<ConfigLogFiltros>({
     limit: 50,
     offset: 0
   });
@@ -53,7 +53,7 @@ const AdminConfigLogs: React.FC = () => {
   const registrosPorPagina = 50;
 
   // Cargar logs
-  const cargarLogs = async () => {
+  const cargarLogs = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -82,24 +82,24 @@ const AdminConfigLogs: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [paginaActual, tablaFiltro, accionFiltro, fechaDesde, fechaHasta]);
 
   // Cargar estadísticas
-  const cargarEstadisticas = async () => {
+  const cargarEstadisticas = useCallback(async () => {
     try {
-  const api = getAPI();
-  const stats = api.obtenerEstadisticasLogs ? await api.obtenerEstadisticasLogs() : [];
+      const api = getAPI();
+      const stats = api.obtenerEstadisticasLogs ? await api.obtenerEstadisticasLogs() : [];
       setEstadisticas(stats);
     } catch (err) {
       console.error('Error cargando estadísticas:', err);
     }
-  };
+  }, []);
 
   // Cargar al montar el componente
   useEffect(() => {
     cargarLogs();
     cargarEstadisticas();
-  }, [paginaActual]);
+  }, [paginaActual, cargarLogs, cargarEstadisticas]);
 
   // Aplicar filtros
   const aplicarFiltros = () => {

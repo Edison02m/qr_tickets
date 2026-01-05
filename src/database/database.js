@@ -139,46 +139,65 @@ class Database {
     });
   }
 
-  // Crear o actualizar cierre de caja (upsert)
+  // Crear o actualizar cierre de caja (ahora siempre crea nuevo registro)
   upsertCashClosure({ usuario_id, fecha_inicio, total_ventas, cantidad_tickets, detalle_tipos }) {
-    return new Promise(async (resolve, reject) => {
-      try {
-        // Verificar si ya existe un cierre para esta fecha y usuario
-        const existingClosure = await this.getCashClosureByDateAndUser(usuario_id, fecha_inicio);
-        
-        if (existingClosure) {
-          // Actualizar el cierre existente
-          this.db.run(
-            `UPDATE cierres_caja SET total_ventas = ?, cantidad_tickets = ?, detalle_tipos = ?, fecha_cierre = datetime('now', 'localtime')
-             WHERE usuario_id = ? AND date(fecha_inicio) = date(?)`,
-            [total_ventas, cantidad_tickets, detalle_tipos, usuario_id, fecha_inicio],
-            function(err) {
-              if (err) reject(err);
-              else resolve({ 
-                action: 'updated', 
-                id: existingClosure.id, 
-                changes: this.changes 
-              });
-            }
-          );
-        } else {
-          // Crear un nuevo cierre
-          this.db.run(
+    const self = this;
+    return new Promise((resolve, reject) => {
+      // Usar transacción para asegurar consistencia
+      self.db.serialize(() => {
+        self.db.run('BEGIN TRANSACTION', (err) => {
+          if (err) {
+            reject(err);
+            return;
+          }
+
+          // Paso 1: Crear el nuevo cierre
+          self.db.run(
             `INSERT INTO cierres_caja (usuario_id, fecha_inicio, total_ventas, cantidad_tickets, detalle_tipos)
              VALUES (?, ?, ?, ?, ?)`,
             [usuario_id, fecha_inicio, total_ventas, cantidad_tickets, detalle_tipos],
             function(err) {
-              if (err) reject(err);
-              else resolve({ 
-                action: 'created', 
-                id: this.lastID 
-              });
+              if (err) {
+                self.db.run('ROLLBACK', () => reject(err));
+                return;
+              }
+              
+              const cierreId = this.lastID;
+              
+              // Paso 2: Actualizar todas las ventas del día que no tienen cierre asignado
+              self.db.run(
+                `UPDATE ventas 
+                 SET cierre_caja_id = ?
+                 WHERE usuario_id = ? 
+                   AND date(fecha_venta) = date(?)
+                   AND cierre_caja_id IS NULL
+                   AND anulada = 0`,
+                [cierreId, usuario_id, fecha_inicio],
+                function(errUpdate) {
+                  if (errUpdate) {
+                    self.db.run('ROLLBACK', () => reject(errUpdate));
+                  } else {
+                    const ventasActualizadas = this.changes;
+                    
+                    // Paso 3: Commit si todo salió bien
+                    self.db.run('COMMIT', (errCommit) => {
+                      if (errCommit) {
+                        self.db.run('ROLLBACK', () => reject(errCommit));
+                      } else {
+                        resolve({ 
+                          action: 'created', 
+                          id: cierreId,
+                          ventas_actualizadas: ventasActualizadas
+                        });
+                      }
+                    });
+                  }
+                }
+              );
             }
           );
-        }
-      } catch (error) {
-        reject(error);
-      }
+        });
+      });
     });
   }
 
@@ -512,6 +531,24 @@ class Database {
   }
 
   runMigrations() {
+    // Migración: Agregar cierre_caja_id a ventas
+    this.db.all("PRAGMA table_info(ventas)", [], (err, columns) => {
+      if (err) {
+        console.error('Error checking ventas table schema:', err);
+        return;
+      }
+      
+      const columnNames = columns.map(col => col.name);
+      
+      // Agregar cierre_caja_id si no existe
+      if (!columnNames.includes('cierre_caja_id')) {
+        this.db.run("ALTER TABLE ventas ADD COLUMN cierre_caja_id INTEGER REFERENCES cierres_caja(id)", (err) => {
+          if (err) console.error('Error adding cierre_caja_id column:', err);
+          else console.log('✅ Columna cierre_caja_id agregada a tabla ventas');
+        });
+      }
+    });
+
     // Migración: Agregar columnas de configuración de relay a puertas existentes
     this.db.all("PRAGMA table_info(puertas)", [], (err, columns) => {
       if (err) {
@@ -628,62 +665,97 @@ class Database {
       }
       
       if (table) {
-        // Verificar si ya existe el índice único
+        // Verificar si existe el índice único (que NO queremos)
         this.db.get("SELECT name FROM sqlite_master WHERE type='index' AND name='unique_usuario_fecha_cierre'", [], (err, index) => {
           if (err) {
             console.error('Error checking index:', err);
             return;
           }
           
-          if (!index) {
-            console.log('Migrando tabla cierres_caja para agregar constraint UNIQUE(usuario_id, fecha_inicio)...');
-            
-            this.db.serialize(() => {
-              // Crear tabla temporal con el nuevo constraint
-              this.db.run(`
-                CREATE TABLE IF NOT EXISTS cierres_caja_new (
-                  id INTEGER PRIMARY KEY AUTOINCREMENT,
-                  usuario_id INTEGER NOT NULL,
-                  fecha_inicio TIMESTAMP NOT NULL,
-                  fecha_cierre TIMESTAMP DEFAULT (datetime('now', 'localtime')),
-                  total_ventas DECIMAL(10,2) NOT NULL,
-                  cantidad_tickets INTEGER NOT NULL,
-                  detalle_tipos TEXT,
-                  FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
-                )
-              `);
-              
-              // Copiar datos existentes (eliminando duplicados si los hay, quedándose con el más reciente)
-              this.db.run(`
-                INSERT INTO cierres_caja_new (id, usuario_id, fecha_inicio, fecha_cierre, total_ventas, cantidad_tickets, detalle_tipos)
-                SELECT id, usuario_id, fecha_inicio, fecha_cierre, total_ventas, cantidad_tickets, detalle_tipos
-                FROM cierres_caja
-                WHERE id IN (
-                  SELECT MAX(id) 
-                  FROM cierres_caja 
-                  GROUP BY usuario_id, date(fecha_inicio)
-                )
-              `);
-              
-              // Eliminar tabla antigua
-              this.db.run('DROP TABLE cierres_caja');
-              
-              // Renombrar nueva tabla
-              this.db.run('ALTER TABLE cierres_caja_new RENAME TO cierres_caja', (err) => {
-                if (err) {
-                  console.error('Error al migrar cierres_caja:', err);
-                } else {
-                  // Crear índice único en (usuario_id, date(fecha_inicio))
-                  this.db.run('CREATE UNIQUE INDEX unique_usuario_fecha_cierre ON cierres_caja(usuario_id, date(fecha_inicio))', (err) => {
-                    if (err) {
-                      console.error('Error al crear índice único:', err);
-                    }
-                  });
-                }
-              });
+          if (index) {
+            // ELIMINAR el índice único porque ahora permitimos múltiples cierres por día
+            console.log('Eliminando índice UNIQUE de cierres_caja para permitir múltiples cierres por día...');
+            this.db.run('DROP INDEX IF EXISTS unique_usuario_fecha_cierre', (err) => {
+              if (err) {
+                console.error('Error al eliminar índice único:', err);
+              } else {
+                console.log('✅ Índice UNIQUE eliminado - Ahora se permiten múltiples cierres por día');
+              }
             });
           }
         });
+      }
+    });
+
+    // Migración: Sistema multi-puerta - Crear tabla tipos_ticket_puertas
+    this.db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='tipos_ticket_puertas'", [], (err, table) => {
+      if (err) {
+        console.error('Error checking tipos_ticket_puertas table:', err);
+        return;
+      }
+      
+      if (!table) {
+        console.log('🚀 Iniciando migración a sistema multi-puerta...');
+        
+        // Paso 1: Crear la nueva tabla de relación
+        this.db.run(`
+          CREATE TABLE tipos_ticket_puertas (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            tipo_ticket_id INTEGER NOT NULL,
+            puerta_id INTEGER NOT NULL,
+            fecha_creacion TIMESTAMP DEFAULT (datetime('now', 'localtime')),
+            FOREIGN KEY (tipo_ticket_id) REFERENCES tipos_ticket(id) ON DELETE CASCADE,
+            FOREIGN KEY (puerta_id) REFERENCES puertas(id) ON DELETE CASCADE,
+            UNIQUE(tipo_ticket_id, puerta_id)
+          )
+        `, (err) => {
+          if (err) {
+            console.error('❌ Error creando tabla tipos_ticket_puertas:', err);
+            return;
+          }
+          console.log('✅ Tabla tipos_ticket_puertas creada');
+          
+          // Paso 2: Migrar datos existentes de puerta_id
+          this.db.all("SELECT id, puerta_id FROM tipos_ticket WHERE puerta_id IS NOT NULL", [], (err, rows) => {
+            if (err) {
+              console.error('❌ Error leyendo tipos_ticket:', err);
+              return;
+            }
+            
+            if (rows.length === 0) {
+              console.log('ℹ️ No hay datos de puerta_id para migrar');
+              this.completarMigracionMultiPuerta();
+              return;
+            }
+            
+            console.log(`🔄 Migrando ${rows.length} relaciones tipo_ticket → puerta...`);
+            
+            // Insertar cada relación en la nueva tabla
+            let completados = 0;
+            rows.forEach((row) => {
+              this.db.run(
+                'INSERT INTO tipos_ticket_puertas (tipo_ticket_id, puerta_id) VALUES (?, ?)',
+                [row.id, row.puerta_id],
+                (err) => {
+                  if (err) {
+                    console.error(`❌ Error migrando tipo_ticket ${row.id}:`, err);
+                  } else {
+                    completados++;
+                  }
+                  
+                  // Cuando terminamos todas las inserciones
+                  if (completados === rows.length) {
+                    console.log(`✅ ${completados}/${rows.length} relaciones migradas a tipos_ticket_puertas`);
+                    this.completarMigracionMultiPuerta();
+                  }
+                }
+              );
+            });
+          });
+        });
+      } else {
+        // Tabla ya existe, solo verificar si necesita completar la migración (eliminar puerta_id)
+        this.completarMigracionMultiPuerta();
       }
     });
 
@@ -788,14 +860,35 @@ class Database {
   getTicketTypes() {
     return new Promise((resolve, reject) => {
       this.db.all(
-        `SELECT tt.*, p.nombre as puerta_nombre, p.codigo as puerta_codigo 
+        `SELECT tt.*, 
+                GROUP_CONCAT(p.id) as puerta_ids,
+                GROUP_CONCAT(p.nombre) as puerta_nombres,
+                GROUP_CONCAT(p.codigo) as puerta_codigos
          FROM tipos_ticket tt
-         LEFT JOIN puertas p ON tt.puerta_id = p.id
+         LEFT JOIN tipos_ticket_puertas ttp ON tt.id = ttp.tipo_ticket_id
+         LEFT JOIN puertas p ON ttp.puerta_id = p.id
+         GROUP BY tt.id
          ORDER BY tt.id DESC`,
         [],
         (err, rows) => {
-          if (err) reject(err);
-          else resolve(rows);
+          if (err) {
+            reject(err);
+          } else {
+            // Transformar los resultados para incluir arrays de puertas
+            const ticketTypes = rows.map(row => ({
+              ...row,
+              puertas: row.puerta_ids ? row.puerta_ids.split(',').map((id, index) => {
+                const nombres = row.puerta_nombres ? row.puerta_nombres.split(',') : [];
+                const codigos = row.puerta_codigos ? row.puerta_codigos.split(',') : [];
+                return {
+                  id: parseInt(id),
+                  nombre: nombres[index] || '',
+                  codigo: codigos[index] || ''
+                };
+              }) : []
+            }));
+            resolve(ticketTypes);
+          }
         }
       );
     });
@@ -805,15 +898,36 @@ class Database {
   getActiveTicketTypes() {
     return new Promise((resolve, reject) => {
       this.db.all(
-        `SELECT tt.*, p.nombre as puerta_nombre, p.codigo as puerta_codigo 
+        `SELECT tt.*, 
+                GROUP_CONCAT(p.id) as puerta_ids,
+                GROUP_CONCAT(p.nombre) as puerta_nombres,
+                GROUP_CONCAT(p.codigo) as puerta_codigos
          FROM tipos_ticket tt
-         LEFT JOIN puertas p ON tt.puerta_id = p.id
-         WHERE tt.activo = 1 
+         LEFT JOIN tipos_ticket_puertas ttp ON tt.id = ttp.tipo_ticket_id
+         LEFT JOIN puertas p ON ttp.puerta_id = p.id
+         WHERE tt.activo = 1 ve
+         GROUP BY tt.id
          ORDER BY tt.id DESC`,
         [],
         (err, rows) => {
-          if (err) reject(err);
-          else resolve(rows);
+          if (err) {
+            reject(err);
+          } else {
+            // Transformar los resultados para incluir arrays de puertas
+            const ticketTypes = rows.map(row => ({
+              ...row,
+              puertas: row.puerta_ids ? row.puerta_ids.split(',').map((id, index) => {
+                const nombres = row.puerta_nombres ? row.puerta_nombres.split(',') : [];
+                const codigos = row.puerta_codigos ? row.puerta_codigos.split(',') : [];
+                return {
+                  id: parseInt(id),
+                  nombre: nombres[index] || '',
+                  codigo: codigos[index] || ''
+                };
+              }) : []
+            }));
+            resolve(ticketTypes);
+          }
         }
       );
     });
@@ -932,7 +1046,7 @@ class Database {
     });
   }
 
-  // Obtener resumen de ventas diarias de un vendedor específico
+  // Obtener resumen de ventas diarias de un vendedor específico (solo ventas NO cerradas)
   getVendedorDailySummary(userId, fecha = null) {
     return new Promise((resolve, reject) => {
       // Si no se proporciona fecha, usar la fecha actual
@@ -950,6 +1064,7 @@ class Database {
          WHERE v.usuario_id = ? 
            AND date(v.fecha_venta) = date(?)
            AND v.anulada = 0
+           AND v.cierre_caja_id IS NULL
            AND t.impreso = 1
          GROUP BY tt.id, tt.nombre
          ORDER BY tt.nombre`,
@@ -977,7 +1092,7 @@ class Database {
   // Crear un nuevo tipo de ticket
   createTicketType(data) {
     return new Promise((resolve, reject) => {
-      const { nombre, precio, puerta_id } = data;
+      const { nombre, precio, puerta_ids = [] } = data;
       
       // Validaciones
       if (!nombre || nombre.trim() === '') {
@@ -989,9 +1104,10 @@ class Database {
         return;
       }
       
+      // Paso 1: Insertar el tipo de ticket (sin puerta_id)
       this.db.run(
-        'INSERT INTO tipos_ticket (nombre, precio, puerta_id) VALUES (?, ?, ?)',
-        [nombre.trim(), precio, puerta_id || null],
+        'INSERT INTO tipos_ticket (nombre, precio) VALUES (?, ?)',
+        [nombre.trim(), precio],
         function(err) {
           if (err) {
             if (err.message && err.message.includes('UNIQUE')) {
@@ -999,17 +1115,62 @@ class Database {
             } else {
               reject(err);
             }
-          } else {
+            return;
+          }
+          
+          const tipoTicketId = this.lastID;
+          
+          // Paso 2: Insertar relaciones con puertas si hay alguna
+          if (!Array.isArray(puerta_ids) || puerta_ids.length === 0) {
             resolve({
-              id: this.lastID,
+              id: tipoTicketId,
               nombre: nombre.trim(),
               precio,
-              puerta_id,
+              puertas: [],
               activo: 1,
               fecha_creacion: getLocalDateTime()
             });
+            return;
           }
-        }
+          
+          // Insertar cada relación tipo_ticket → puerta
+          const db = this.db; // Guardar referencia al db
+          let completados = 0; // Contador de callbacks completados
+          let errorOcurrido = false;
+          
+          puerta_ids.forEach((puertaId) => {
+            db.run(
+              'INSERT INTO tipos_ticket_puertas (tipo_ticket_id, puerta_id) VALUES (?, ?)',
+              [tipoTicketId, puertaId],
+              (err) => {
+                if (err && !errorOcurrido) {
+                  errorOcurrido = true;
+                  // Si hay error, eliminar el tipo de ticket creado (rollback)
+                  db.run('DELETE FROM tipos_ticket WHERE id = ?', [tipoTicketId], () => {
+                    reject(new Error(`Error al asociar puertas: ${err.message}`));
+                  });
+                  return;
+                }
+                
+                if (!errorOcurrido) {
+                  completados++;
+                  
+                  // Cuando terminamos todas las inserciones
+                  if (completados === puerta_ids.length) {
+                    resolve({
+                      id: tipoTicketId,
+                      nombre: nombre.trim(),
+                      precio,
+                      puerta_ids,
+                      activo: 1,
+                      fecha_creacion: getLocalDateTime()
+                    });
+                  }
+                }
+              }
+            );
+          });
+        }.bind(this)
       );
     });
   }
@@ -1017,7 +1178,7 @@ class Database {
   // Actualizar un tipo de ticket existente
   updateTicketType(data) {
     return new Promise((resolve, reject) => {
-      const { id, nombre, precio, puerta_id } = data;
+      const { id, nombre, precio, puerta_ids = [] } = data;
       
       // Validaciones
       if (!nombre || nombre.trim() === '') {
@@ -1029,9 +1190,12 @@ class Database {
         return;
       }
       
+      const self = this;
+      
+      // Paso 1: Actualizar el tipo de ticket (sin puerta_id)
       this.db.run(
-        'UPDATE tipos_ticket SET nombre = ?, precio = ?, puerta_id = ? WHERE id = ?',
-        [nombre.trim(), precio, puerta_id || null, id],
+        'UPDATE tipos_ticket SET nombre = ?, precio = ? WHERE id = ?',
+        [nombre.trim(), precio, id],
         (err) => {
           if (err) {
             if (err.message && err.message.includes('UNIQUE')) {
@@ -1039,9 +1203,62 @@ class Database {
             } else {
               reject(err);
             }
-          } else {
-            resolve({ id, nombre: nombre.trim(), precio, puerta_id });
+            return;
           }
+          
+          // Paso 2: Eliminar relaciones anteriores con puertas
+          self.db.run(
+            'DELETE FROM tipos_ticket_puertas WHERE tipo_ticket_id = ?',
+            [id],
+            (err) => {
+              if (err) {
+                reject(new Error(`Error al actualizar puertas: ${err.message}`));
+                return;
+              }
+              
+              // Paso 3: Insertar nuevas relaciones
+              if (!Array.isArray(puerta_ids) || puerta_ids.length === 0) {
+                resolve({ 
+                  id, 
+                  nombre: nombre.trim(), 
+                  precio, 
+                  puertas: [] 
+                });
+                return;
+              }
+              
+              let completados = 0; // Contador de callbacks completados
+              let errorOcurrido = false;
+              
+              puerta_ids.forEach((puertaId) => {
+                self.db.run(
+                  'INSERT INTO tipos_ticket_puertas (tipo_ticket_id, puerta_id) VALUES (?, ?)',
+                  [id, puertaId],
+                  (err) => {
+                    if (err && !errorOcurrido) {
+                      errorOcurrido = true;
+                      reject(new Error(`Error al asociar puertas: ${err.message}`));
+                      return;
+                    }
+                    
+                    if (!errorOcurrido) {
+                      completados++;
+                      
+                      // Cuando terminamos todas las inserciones
+                      if (completados === puerta_ids.length) {
+                        resolve({ 
+                          id, 
+                          nombre: nombre.trim(), 
+                          precio, 
+                          puerta_ids 
+                        });
+                      }
+                    }
+                  }
+                );
+              });
+            }
+          );
         }
       );
     });
@@ -1095,6 +1312,28 @@ class Database {
               }
             );
           }
+        }
+      );
+    });
+  }
+
+  /**
+   * Obtener las puertas asociadas a un tipo de ticket específico
+   * @param {number} tipoTicketId - ID del tipo de ticket
+   * @returns {Promise<Array>} Array de puertas asociadas
+   */
+  getTicketTypeDoors(tipoTicketId) {
+    return new Promise((resolve, reject) => {
+      this.db.all(
+        `SELECT p.* 
+         FROM puertas p
+         INNER JOIN tipos_ticket_puertas ttp ON p.id = ttp.puerta_id
+         WHERE ttp.tipo_ticket_id = ?
+         ORDER BY p.nombre`,
+        [tipoTicketId],
+        (err, rows) => {
+          if (err) reject(err);
+          else resolve(rows);
         }
       );
     });
@@ -1363,67 +1602,40 @@ class Database {
           return;
         }
 
-        // Verificar si hay tipos de ticket usando esta puerta
-        this.db.get(
-          'SELECT COUNT(*) as count FROM tipos_ticket WHERE puerta_id = ?',
+        // PASO 2: Eliminar primero todas las relaciones en tipos_ticket_puertas
+        this.db.run(
+          'DELETE FROM tipos_ticket_puertas WHERE puerta_id = ?',
           [id],
-          (err, row) => {
+          (err) => {
             if (err) {
               reject(err);
               return;
             }
 
-            if (row.count > 0) {
-              // Si hay tipos de ticket, solo desactivar
-              this.db.run(
-                'UPDATE puertas SET activo = 0 WHERE id = ?',
-                [id],
-                (err) => {
-                  if (err) {
-                    reject(err);
-                  } else {
-                    // Registrar log de desactivación
-                    self.registrarLogConfig({
-                      accion: 'modificar',
-                      tabla_afectada: 'puertas',
-                      registro_id: id,
-                      descripcion: `Desactivación de puerta: ${datosAnteriores.nombre} (tiene tipos de ticket asociados)`,
-                      datos_anteriores: datosAnteriores,
-                      datos_nuevos: { ...datosAnteriores, activo: 0 }
-                    }).catch(err => {
-                      console.error('Error al registrar log de desactivación de puerta:', err);
-                    });
+            // PASO 3: Ahora eliminar la puerta
+            this.db.run(
+              'DELETE FROM puertas WHERE id = ?',
+              [id],
+              (err) => {
+                if (err) {
+                  reject(err);
+                } else {
+                  // Registrar log de eliminación
+                  self.registrarLogConfig({
+                    accion: 'eliminar',
+                    tabla_afectada: 'puertas',
+                    registro_id: id,
+                    descripcion: `Eliminación de puerta: ${datosAnteriores.nombre}`,
+                    datos_anteriores: datosAnteriores,
+                    datos_nuevos: null
+                  }).catch(err => {
+                    console.error('Error al registrar log de eliminación de puerta:', err);
+                  });
 
-                    resolve({ success: true, wasDeactivated: true });
-                  }
+                  resolve({ success: true, wasDeactivated: false });
                 }
-              );
-            } else {
-              // Si no hay tipos de ticket, eliminar
-              this.db.run(
-                'DELETE FROM puertas WHERE id = ?',
-                [id],
-                (err) => {
-                  if (err) {
-                    reject(err);
-                  } else {
-                    // Registrar log de eliminación
-                    self.registrarLogConfig({
-                      accion: 'eliminar',
-                      tabla_afectada: 'puertas',
-                      registro_id: id,
-                      descripcion: `Eliminación de puerta: ${datosAnteriores.nombre}`,
-                      datos_anteriores: datosAnteriores,
-                      datos_nuevos: null
-                    }).catch(err => {
-                      console.error('Error al registrar log de eliminación de puerta:', err);
-                    });
-
-                    resolve({ success: true, wasDeactivated: false });
-                  }
-                }
-              );
-            }
+              }
+            );
           }
         );
       });
@@ -2003,6 +2215,89 @@ class Database {
           }
         }
       );
+    });
+  }
+
+  /**
+   * Completar la migración multi-puerta eliminando la columna puerta_id
+   * SQLite no permite DROP COLUMN directamente, así que recreamos la tabla
+   */
+  completarMigracionMultiPuerta() {
+    console.log('🔄 Paso 3: Eliminando columna puerta_id de tipos_ticket...');
+    
+    // Verificar si la columna puerta_id aún existe
+    this.db.all("PRAGMA table_info(tipos_ticket)", [], (err, columns) => {
+      if (err) {
+        console.error('❌ Error verificando estructura de tipos_ticket:', err);
+        return;
+      }
+      
+      const columnNames = columns.map(col => col.name);
+      
+      if (!columnNames.includes('puerta_id')) {
+        console.log('✅ Columna puerta_id ya fue eliminada previamente');
+        return;
+      }
+      
+      // SQLite no soporta DROP COLUMN hasta versión 3.35+, así que recreamos la tabla
+      this.db.serialize(() => {
+        // Paso 1: Renombrar tabla original
+        this.db.run('ALTER TABLE tipos_ticket RENAME TO tipos_ticket_old', (err) => {
+          if (err) {
+            console.error('❌ Error renombrando tipos_ticket:', err);
+            return;
+          }
+          
+          // Paso 2: Crear nueva tabla sin puerta_id
+          this.db.run(`
+            CREATE TABLE tipos_ticket (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              nombre VARCHAR(50) NOT NULL UNIQUE,
+              precio DECIMAL(10,2) NOT NULL CHECK(precio > 0),
+              activo BOOLEAN DEFAULT 1,
+              fecha_creacion TIMESTAMP DEFAULT (datetime('now', 'localtime'))
+            )
+          `, (err) => {
+            if (err) {
+              console.error('❌ Error creando nueva tabla tipos_ticket:', err);
+              return;
+            }
+            
+            // Paso 3: Copiar datos (sin puerta_id)
+            this.db.run(`
+              INSERT INTO tipos_ticket (id, nombre, precio, activo, fecha_creacion)
+              SELECT id, nombre, precio, activo, fecha_creacion
+              FROM tipos_ticket_old
+            `, (err) => {
+              if (err) {
+                console.error('❌ Error copiando datos a nueva tabla tipos_ticket:', err);
+                return;
+              }
+              
+              // Paso 4: Eliminar tabla antigua
+              this.db.run('DROP TABLE tipos_ticket_old', (err) => {
+                if (err) {
+                  console.error('❌ Error eliminando tabla tipos_ticket_old:', err);
+                  return;
+                }
+                
+                console.log('✅ Columna puerta_id eliminada de tipos_ticket');
+                
+                // Paso 5: Eliminar UNIQUE index nombre_puerta si existe
+                this.db.run('DROP INDEX IF EXISTS idx_tipo_ticket_nombre_puerta', (err) => {
+                  if (err) {
+                    console.error('⚠️ No se pudo eliminar índice idx_tipo_ticket_nombre_puerta:', err);
+                  } else {
+                    console.log('✅ Índice idx_tipo_ticket_nombre_puerta eliminado (si existía)');
+                  }
+                  
+                  console.log('🎉 Migración a sistema multi-puerta completada exitosamente');
+                });
+              });
+            });
+          });
+        });
+      });
     });
   }
 

@@ -67,7 +67,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
   const renderContent = () => {
     switch (currentView) {
       case 'ticket-types':
-        return <TicketTypesAdmin />;
+        return <TicketTypesAdmin onNavigateToPuertas={() => setCurrentView('puertas')} />;
       case 'users':
         return <UsersAdmin />;
       case 'puertas':

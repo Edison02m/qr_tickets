@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 
 interface VentaDiariaDetalle {
   tipo_ticket: string;
@@ -21,11 +21,8 @@ const VentasDiarias: React.FC = () => {
     return new Date().toISOString().split('T')[0];
   });
 
-  useEffect(() => {
-    cargarVentasDiarias();
-  }, [fechaConsulta]);
-
-  const cargarVentasDiarias = async () => {
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const cargarVentasDiarias = useCallback(async () => {
     try {
       setLoading(true);
       if (window.electronAPI) {
@@ -38,7 +35,11 @@ const VentasDiarias: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [fechaConsulta]);
+
+  useEffect(() => {
+    cargarVentasDiarias();
+  }, [cargarVentasDiarias]);
 
   const formatearFecha = (fecha: string) => {
     return new Date(fecha).toLocaleDateString('es-ES', {

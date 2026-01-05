@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 
 interface CashClosure {
   id: number;
@@ -36,36 +36,22 @@ const CashClosureAdmin: React.FC<Props> = ({ userId, userRole }) => {
   const [filtroFechaInicio, setFiltroFechaInicio] = useState('');
   const [filtroFechaFin, setFiltroFechaFin] = useState('');
 
-  const [existeCierre, setExisteCierre] = useState(false);
-  const [cierreActual, setCierreActual] = useState<CashClosure | null>(null);
   const [cierres, setCierres] = useState<CashClosure[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [fechaInicio, setFechaInicio] = useState('');
   const [resumen, setResumen] = useState<{ total_ventas: number; cantidad_tickets: number; detalle_tipos: string }>({ total_ventas: 0, cantidad_tickets: 0, detalle_tipos: '' });
 
-  useEffect(() => {
-    fetchCierres();
-    // Si es admin, cargar lista de usuarios
-    if (isAdmin) {
-      fetchUsuarios();
-    }
-    // Por defecto, fecha de hoy
-    const hoy = new Date().toISOString().slice(0, 10);
-    setFechaInicio(hoy);
-    checkExistingClosure(hoy);
-  }, []);
-
-  const fetchUsuarios = async () => {
+  const fetchUsuarios = useCallback(async () => {
     try {
       const data = await window.electronAPI.getUsers();
       setUsuarios(data.filter((u: any) => u.activo === 1));
     } catch (err) {
       console.error('Error al cargar usuarios:', err);
     }
-  };
+  }, []);
 
-  const fetchCierres = async () => {
+  const fetchCierres = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
@@ -76,32 +62,34 @@ const CashClosureAdmin: React.FC<Props> = ({ userId, userRole }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const checkExistingClosure = async (fecha: string) => {
+  const checkExistingClosure = useCallback(async (fecha: string) => {
     try {
-      const userIdToCheck = isAdmin ? usuarioSeleccionado : (userId || 1);
-      const closure = await window.electronAPI.getCashClosureByDateAndUser(userIdToCheck, fecha);
-      if (closure) {
-        setExisteCierre(true);
-        setCierreActual(closure);
-      } else {
-        setExisteCierre(false);
-        setCierreActual(null);
-      }
-      
-      // Si es admin, también cargar cierres consolidados
+      // Ya no verificamos si existe un cierre previo, porque ahora se pueden hacer múltiples cierres
+      // Solo actualizamos los cierres consolidados si es admin
       if (isAdmin) {
         const consolidado = await window.electronAPI.getAllCashClosuresByDate(fecha);
         setCierresConsolidados(consolidado);
       }
     } catch (err) {
-      console.error('Error al verificar cierre existente:', err);
+      console.error('Error al cargar cierres consolidados:', err);
     }
-  };
+  }, [isAdmin]);
+
+  // Ejecutar inicialización
+  useEffect(() => {
+    fetchCierres();
+    if (isAdmin) fetchUsuarios();
+    const hoy = new Date().toISOString().slice(0, 10);
+    setFechaInicio(hoy);
+    checkExistingClosure(hoy);
+  }, [fetchCierres, fetchUsuarios, checkExistingClosure, isAdmin]);
+
+  
 
   // Calcular resumen automático de tickets vendidos no anulados
-  const fetchResumen = async (fecha: string) => {
+  const fetchResumen = useCallback(async (fecha: string) => {
     setError('');
     try {
       const userIdToUse = isAdmin ? usuarioSeleccionado : (userId || 1);
@@ -123,13 +111,13 @@ const CashClosureAdmin: React.FC<Props> = ({ userId, userRole }) => {
       console.error('Error al calcular resumen:', err);
       setError('Error al calcular resumen');
     }
-  };
+  }, [isAdmin, usuarioSeleccionado, userId]);
 
   useEffect(() => {
     if (fechaInicio) {
       fetchResumen(fechaInicio);
     }
-  }, [fechaInicio, usuarioSeleccionado]);
+  }, [fechaInicio, fetchResumen]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const nuevaFecha = e.target.value;
@@ -140,6 +128,13 @@ const CashClosureAdmin: React.FC<Props> = ({ userId, userRole }) => {
   const handleCreateClosure = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    
+    // Validar que haya ventas para cerrar
+    if (resumen.cantidad_tickets === 0) {
+      setError('No hay ventas pendientes para cerrar en esta fecha');
+      return;
+    }
+    
     try {
       const usuario_id = isAdmin ? usuarioSeleccionado : (userId || 1);
       const result = await window.electronAPI.upsertCashClosure({
@@ -150,16 +145,10 @@ const CashClosureAdmin: React.FC<Props> = ({ userId, userRole }) => {
         detalle_tipos: resumen.detalle_tipos,
       });
       
-      // Actualizar el estado según la acción realizada
+      // Siempre se crea un nuevo registro
       if (result.action === 'created') {
-        setExisteCierre(true);
-        // Obtener el cierre recién creado
-        const newClosure = await window.electronAPI.getCashClosureByDateAndUser(usuario_id, fechaInicio);
-        setCierreActual(newClosure);
-      } else if (result.action === 'updated') {
-        // Obtener el cierre actualizado
-        const updatedClosure = await window.electronAPI.getCashClosureByDateAndUser(usuario_id, fechaInicio);
-        setCierreActual(updatedClosure);
+        // Limpiar el resumen (las ventas ya fueron cerradas)
+        setResumen({ total_ventas: 0, cantidad_tickets: 0, detalle_tipos: 'Sin ventas pendientes' });
       }
       
       await fetchCierres();
@@ -169,6 +158,9 @@ const CashClosureAdmin: React.FC<Props> = ({ userId, userRole }) => {
         const consolidado = await window.electronAPI.getAllCashClosuresByDate(fechaInicio);
         setCierresConsolidados(consolidado);
       }
+      
+      // Recargar el resumen para mostrar solo ventas nuevas (sin cierre)
+      await fetchResumen(fechaInicio);
     } catch (err) {
       setError('Error al procesar el cierre de caja');
       console.error('Error en handleCreateClosure:', err);
@@ -234,26 +226,9 @@ const CashClosureAdmin: React.FC<Props> = ({ userId, userRole }) => {
             </div>
           </div>
 
-          {/* Estado del cierre - Compacto */}
-          {existeCierre && cierreActual && (
-            <div className="bg-blue-50 border border-blue-200 rounded-md p-2 flex items-center gap-2">
-              <svg className="w-4 h-4 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <div>
-                <p className="text-xs text-blue-900 font-medium">Cierre ya registrado</p>
-                <p className="text-xs text-blue-600 font-mono">
-                  {new Date(cierreActual.fecha_cierre || cierreActual.fecha_inicio).toLocaleString('es-ES', { 
-                    month: '2-digit', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' 
-                  })}
-                </p>
-              </div>
-            </div>
-          )}
-
           {/* Resumen - Ultra Compacto */}
           <div className="border-t border-gray-200 pt-2">
-            <h3 className="text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">Resumen</h3>
+            <h3 className="text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">Resumen de Ventas Pendientes</h3>
             <div className="grid grid-cols-2 gap-2">
               <div className="bg-gray-50 rounded-md p-2 text-center">
                 <div className="text-xs text-gray-500 mb-0.5">Total</div>
@@ -295,10 +270,16 @@ const CashClosureAdmin: React.FC<Props> = ({ userId, userRole }) => {
           {/* Botón - Compacto */}
           <button 
             type="submit" 
-            className="w-full py-2 px-3 bg-[#1D324D] text-white text-sm font-semibold rounded-md hover:bg-[#457373] focus:outline-none focus:ring-2 focus:ring-[#457373] focus:ring-offset-1 transition-all duration-200 shadow-sm"
+            disabled={resumen.cantidad_tickets === 0}
+            className="w-full py-2 px-3 bg-[#1D324D] text-white text-sm font-semibold rounded-md hover:bg-[#457373] focus:outline-none focus:ring-2 focus:ring-[#457373] focus:ring-offset-1 transition-all duration-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {existeCierre ? 'Actualizar Cierre' : 'Guardar Cierre'}
+            Crear Cierre de Caja
           </button>
+          {resumen.cantidad_tickets === 0 && (
+            <p className="text-xs text-gray-500 text-center mt-1">
+              No hay ventas pendientes para cerrar
+            </p>
+          )}
         </form>
       </div>
 

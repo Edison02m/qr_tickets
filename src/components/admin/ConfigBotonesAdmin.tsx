@@ -28,7 +28,7 @@ const ConfigBotonesAdmin: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [estadosInputs, setEstadosInputs] = useState<{ [key: number]: number }>({
+  const [estadosInputs] = useState<{ [key: number]: number }>({
     1: 0, 2: 0, 3: 0, 4: 0
   });
 
@@ -78,12 +78,45 @@ const ConfigBotonesAdmin: React.FC = () => {
     );
   };
 
+  const handleToggleActivo = async (input_numero: number, nuevoEstado: boolean) => {
+    const config = configuraciones.find(c => c.input_numero === input_numero);
+    if (!config) return;
+
+    // Si está desactivando un botón que YA está guardado en BD
+    if (!nuevoEstado && config.id) {
+      setLoading(true);
+      setError('');
+      setSuccess('');
+
+      try {
+        await window.electronAPI.desactivarBoton(input_numero);
+        setSuccess(`Input ${input_numero} desactivado`);
+        await cargarDatos();
+        setTimeout(() => setSuccess(''), 3000);
+      } catch (err: any) {
+        setError('Error al desactivar: ' + err.message);
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      // Si está activando O si es un botón nuevo, solo actualizar estado local
+      setConfiguraciones(prev =>
+        prev.map(c =>
+          c.input_numero === input_numero
+            ? { ...c, activo: nuevoEstado }
+            : c
+        )
+      );
+    }
+  };
+
   const handleGuardar = async (input_numero: number) => {
     const config = configuraciones.find(c => c.input_numero === input_numero);
     if (!config) return;
 
-    if (!config.tipo_ticket_id) {
-      setError(`Debe seleccionar un tipo de ticket para el Input ${input_numero}`);
+    // Validaciones
+    if (config.activo && !config.tipo_ticket_id) {
+      setError(`Debe seleccionar un tipo de ticket para activar el Input ${input_numero}`);
       return;
     }
 
@@ -99,31 +132,18 @@ const ConfigBotonesAdmin: React.FC = () => {
     try {
       await window.electronAPI.configurarBoton({
         input_numero: config.input_numero,
-        tipo_ticket_id: config.tipo_ticket_id,
+        tipo_ticket_id: config.tipo_ticket_id || 0,
         cantidad: config.cantidad,
         descripcion: config.descripcion,
         activo: config.activo
       });
-      setSuccess(`Botón ${input_numero} configurado exitosamente`);
+      
+      const estado = config.activo ? 'activado' : 'guardado';
+      setSuccess(`Input ${input_numero} ${estado} exitosamente`);
       await cargarDatos();
       setTimeout(() => setSuccess(''), 3000);
     } catch (err: any) {
       setError('Error al guardar: ' + err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDesactivar = async (input_numero: number) => {
-    setLoading(true);
-    setError('');
-    try {
-      await window.electronAPI.desactivarBoton(input_numero);
-      setSuccess(`Botón ${input_numero} desactivado`);
-      await cargarDatos();
-      setTimeout(() => setSuccess(''), 3000);
-    } catch (err: any) {
-      setError('Error al desactivar: ' + err.message);
     } finally {
       setLoading(false);
     }
@@ -229,10 +249,11 @@ const ConfigBotonesAdmin: React.FC = () => {
                     <input
                       type="checkbox"
                       checked={config.activo}
-                      onChange={(e) => handleConfigChange(config.input_numero, 'activo', e.target.checked)}
+                      onChange={(e) => handleToggleActivo(config.input_numero, e.target.checked)}
+                      disabled={loading}
                       className="sr-only peer"
                     />
-                    <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-[#457373] rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#457373]"></div>
+                    <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-[#457373] rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#457373] peer-disabled:opacity-50 peer-disabled:cursor-not-allowed"></div>
                   </div>
                 </label>
               </div>
@@ -248,7 +269,6 @@ const ConfigBotonesAdmin: React.FC = () => {
                     value={config.tipo_ticket_id || ''}
                     onChange={(e) => handleConfigChange(config.input_numero, 'tipo_ticket_id', parseInt(e.target.value))}
                     className="w-full px-2.5 py-1.5 text-sm bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-[#457373]"
-                    disabled={!config.activo}
                   >
                     <option value="">Seleccione un tipo</option>
                     {tiposTicket.map(tipo => (
@@ -271,7 +291,6 @@ const ConfigBotonesAdmin: React.FC = () => {
                     value={config.cantidad}
                     onChange={(e) => handleConfigChange(config.input_numero, 'cantidad', parseInt(e.target.value))}
                     className="w-full px-2.5 py-1.5 text-sm bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-[#457373]"
-                    disabled={!config.activo}
                   />
                 </div>
 
@@ -286,7 +305,6 @@ const ConfigBotonesAdmin: React.FC = () => {
                     placeholder="Ej: Botón entrada principal"
                     rows={2}
                     className="w-full px-2.5 py-1.5 text-sm bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-[#457373] resize-none"
-                    disabled={!config.activo}
                   />
                 </div>
 
@@ -308,29 +326,20 @@ const ConfigBotonesAdmin: React.FC = () => {
                 <div className="flex gap-2 pt-2">
                   <button
                     onClick={() => handleGuardar(config.input_numero)}
-                    disabled={loading || !config.activo}
+                    disabled={loading}
                     className="flex-1 py-1.5 px-3 bg-[#1D324D] text-white text-xs font-semibold rounded-md hover:bg-[#457373] focus:outline-none focus:ring-2 focus:ring-[#457373] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
                     Guardar
                   </button>
                   
                   {config.id && (
-                    <>
-                      <button
-                        onClick={() => handleDesactivar(config.input_numero)}
-                        disabled={loading}
-                        className="px-3 py-1.5 bg-yellow-500 text-white text-xs font-semibold rounded-md hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-500 disabled:opacity-50 transition-colors"
-                      >
-                        Desactivar
-                      </button>
-                      <button
-                        onClick={() => handleEliminar(config.input_numero)}
-                        disabled={loading}
-                        className="px-3 py-1.5 bg-red-500 text-white text-xs font-semibold rounded-md hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:opacity-50 transition-colors"
-                      >
-                        Eliminar
-                      </button>
-                    </>
+                    <button
+                      onClick={() => handleEliminar(config.input_numero)}
+                      disabled={loading}
+                      className="px-3 py-1.5 bg-red-500 text-white text-xs font-semibold rounded-md hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:opacity-50 transition-colors"
+                    >
+                      Eliminar
+                    </button>
                   )}
                 </div>
               </div>

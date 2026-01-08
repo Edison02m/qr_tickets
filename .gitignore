@@ -27,3 +27,17 @@ yarn-error.log*
 # MySQL portable (installer)
 /installer/mysql-portable/mysql-8.0.44-winx64.zip
 /installer/mysql-portable/mysql-8.0.44-winx64/
+
+# Instaladores y archivos compilados
+/installer/control-acceso/control-acceso-qr.exe
+*.exe
+*.msi
+*.dmg
+*.AppImage
+
+# Backups de base de datos
+*.sql
+backup_*.sql
+
+# Archivos de recursos temporales
+/resources/

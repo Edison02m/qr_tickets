@@ -166,8 +166,15 @@ const ConfigRelayAdmin: React.FC = () => {
     try {
       setSaving(true);
       if (window.electronAPI) {
-        const updatedConfig = await window.electronAPI.updateConfigRelay(formData);
-        setConfig(updatedConfig);
+        const result = await window.electronAPI.updateConfigRelay(formData);
+        
+        // Verificar si la operación falló
+        if (result && !result.success) {
+          setError(result.error || 'Error al actualizar la configuración del relay');
+          return;
+        }
+        
+        setConfig(result);
         setSuccessMessage('✅ Configuración del relay X-410 actualizada correctamente');
         
         // Limpiar mensaje de éxito después de 5 segundos

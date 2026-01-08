@@ -1,0 +1,25 @@
+{
+  "mysql": {
+    "host": "localhost",
+    "port": 3306,
+    "user": "admin_tickets",
+    "password": "123123",
+    "database": "tickets_db"
+  },
+  "printer": {
+    "deviceName": "Bullzip PDF Printer",
+    "silent": true,
+    "printBackground": true,
+    "color": true,
+    "margin": {
+      "marginType": "none"
+    },
+    "landscape": false,
+    "pagesPerSheet": 1,
+    "collate": false,
+    "copies": 1,
+    "pageSize": "Custom",
+    "customHeight": 120,
+    "customWidth": 80
+  }
+}

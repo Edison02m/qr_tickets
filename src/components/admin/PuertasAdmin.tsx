@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { showConfirm, showError, showWarning } from '../../utils/dialogs';
 
 interface Puerta {
   id: number;
@@ -252,23 +253,50 @@ const PuertasAdmin: React.FC = () => {
           relay_number: formData.relay_number === '' ? undefined : formData.relay_number,
         };
         
+        let result;
         if (editingId) {
-          await window.electronAPI.updatePuerta({
+          result = await window.electronAPI.updatePuerta({
             id: editingId,
             ...dataToSend,
           });
         } else {
-          await window.electronAPI.createPuerta(dataToSend);
+          result = await window.electronAPI.createPuerta(dataToSend);
         }
+        
+        // Verificar si la operación falló
+        if (result && !result.success) {
+          await showError(result.error || 'Error al guardar la puerta');
+          
+          // También mostrar en el formulario si es error de validación
+          if (result.error) {
+            if (result.error.includes('código') || result.error.includes('codigo')) {
+              setFormErrors({ codigo: result.error });
+            } else if (result.error.includes('nombre')) {
+              setFormErrors({ nombre: result.error });
+            } else if (result.error.includes('IP')) {
+              setFormErrors({ lector_ip: result.error });
+            }
+          }
+          return;
+        }
+        
         await loadPuertas();
         handleCloseDialog();
       }
     } catch (error: any) {
       console.error('Error saving puerta:', error);
-      if (error.message && error.message.includes('UNIQUE')) {
-        setFormErrors({ codigo: 'Este código ya está en uso' });
-      } else {
-        alert('Error al guardar la puerta. Por favor, intenta de nuevo.');
+      const mensaje = error?.message || 'Error al guardar la puerta';
+      await showError(mensaje);
+      
+      // También mostrar en el formulario si es error de validación
+      if (error.message) {
+        if (error.message.includes('código') || error.message.includes('codigo')) {
+          setFormErrors({ codigo: error.message });
+        } else if (error.message.includes('nombre')) {
+          setFormErrors({ nombre: error.message });
+        } else if (error.message.includes('IP')) {
+          setFormErrors({ lector_ip: error.message });
+        }
       }
     }
   };
@@ -276,11 +304,20 @@ const PuertasAdmin: React.FC = () => {
   const handleToggleStatus = async (id: number, currentStatus: boolean) => {
     try {
       if (window.electronAPI) {
-        await window.electronAPI.togglePuertaStatus(id, !currentStatus);
+        const result = await window.electronAPI.togglePuertaStatus(id, !currentStatus);
+        
+        // Verificar si la operación falló
+        if (result && !result.success) {
+          await showError(result.error || 'Error al cambiar el estado de la puerta');
+          return;
+        }
+        
         await loadPuertas();
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error toggling puerta status:', error);
+      const mensaje = error?.message || 'Error al cambiar el estado de la puerta';
+      await showError(mensaje);
     }
   };
 
@@ -288,23 +325,36 @@ const PuertasAdmin: React.FC = () => {
     const puerta = puertas.find(p => p.id === id);
     if (!puerta) return;
     
-    if (!window.confirm(`¿Estás seguro de que deseas eliminar la puerta "${puerta.nombre}"?\n\nNota: Si hay tipos de ticket usando esta puerta, solo se desactivará.`)) {
+    const confirmacion = await showConfirm(
+      `¿Estás seguro de que deseas eliminar la puerta "${puerta.nombre}"?\n\nNota: Si hay tipos de ticket usando esta puerta, no se podrá eliminar.`,
+      'Confirmar Eliminación'
+    );
+    
+    if (!confirmacion) {
       return;
     }
 
     try {
       if (window.electronAPI) {
         const result = await window.electronAPI.deletePuerta(id);
+        
+        // Verificar si la operación falló
+        if (result && !result.success) {
+          await showError(result.error || 'Error al eliminar la puerta');
+          return;
+        }
+        
         await loadPuertas();
         
         // Mostrar mensaje informativo si fue desactivada en lugar de eliminada
-        if (result && result.desactivada) {
-          alert(`La puerta "${puerta.nombre}" tiene tipos de ticket asociados, por lo que fue desactivada en lugar de eliminada.`);
+        if (result && result.wasDeactivated) {
+          await showWarning(`La puerta "${puerta.nombre}" tiene tipos de ticket asociados, por lo que fue desactivada en lugar de eliminada.`);
         }
       }
     } catch (error: any) {
       console.error('Error deleting puerta:', error);
-      alert('Error al eliminar la puerta. Por favor, intenta de nuevo.');
+      const mensaje = error?.message || 'Error al eliminar la puerta';
+      await showError(mensaje);
     }
   };
 

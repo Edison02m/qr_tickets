@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import AdminDashboard from './components/admin/AdminDashboard';
 import VendedorDashboard from './components/vendedor/VendedorDashboard';
+import { showSuccess, showError } from './utils/dialogs';
+import packageJson from '../package.json';
 
 declare global {
   interface Window {
@@ -33,6 +35,7 @@ declare global {
   // Ventas admin
   getAllDailySales: () => Promise<any[]>;
   annulSale: (ventaId: number) => Promise<any>;
+  annulTicket: (ticketId: number) => Promise<any>;
 
   // Cierres de caja
   getAllCashClosures: () => Promise<any[]>;
@@ -54,12 +57,22 @@ declare global {
   getConfigRelay: () => Promise<any>;
   updateConfigRelay: (data: { ip: string; port: number; timeout: number; reintentos: number }) => Promise<any>;
 
-  // Configuración de Botones de Impresión Automática
-  configurarBoton: (config: { input_numero: number; tipo_ticket_id: number; cantidad: number; descripcion?: string; activo?: boolean }) => Promise<any>;
-  obtenerConfigBotones: () => Promise<any[]>;
+  // Control de Acceso QR - Logs y Servicio
+  getControlAccesoLogs: (logType: 'accesos' | 'errores', maxLines: number) => Promise<any[]>;
+  getControlAccesoStatus: () => Promise<{ running: boolean; uptime?: number; conectado?: boolean }>;
+  restartControlAccesoService: () => Promise<{ success: boolean; error?: string }>;
+  clearControlAccesoLogs: (logType: 'accesos' | 'errores') => Promise<{ success: boolean; error?: string }>;
+
+  // Configuración de Botones de Impresión Automática (solo para servidor HTTP)
   obtenerBotonPorInput: (input_numero: number) => Promise<any | null>;
-  desactivarBoton: (input_numero: number) => Promise<{ success: boolean; message: string }>;
-  eliminarBoton: (input_numero: number) => Promise<{ success: boolean; message: string }>;
+  
+  // Reiniciar aplicación
+  relaunchApp: () => void;
+
+  // Configuración de impresora
+  getPrinters: () => Promise<{ success: boolean; printers?: any[]; error?: string }>;
+  savePrinterConfig: (config: any) => Promise<{ success: boolean; message?: string; error?: string }>;
+  getPrinterConfig: () => Promise<{ success: boolean; config?: any; error?: string }>;
     };
   }
 }
@@ -79,9 +92,67 @@ function App() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  
+  // Estados para configuración de MySQL
+  const [showMysqlConfig, setShowMysqlConfig] = useState(false);
+  const [mysqlConfig, setMysqlConfig] = useState({
+    host: 'localhost',
+    port: 3306,
+    user: 'tickets_user',
+    password: 'tickets2026',
+    database: 'tickets_db'
+  });
+  const [mysqlConfigError, setMysqlConfigError] = useState('');
+  const [savingConfig, setSavingConfig] = useState(false);
+  const [testingConnection, setTestingConnection] = useState(false);
+  const [connectionTested, setConnectionTested] = useState(false);
+
+  // Helper para resetear el estado de prueba cuando cambian los campos
+  const handleMysqlConfigChange = (field: string, value: any) => {
+    setMysqlConfig({ ...mysqlConfig, [field]: value });
+    setConnectionTested(false);
+    setMysqlConfigError('');
+  };
+
+  // Cargar configuración guardada y probar conexión automáticamente
+  const loadMysqlConfig = async () => {
+    try {
+      if (window.electronAPI && (window.electronAPI as any).getMysqlConfig) {
+        const response = await (window.electronAPI as any).getMysqlConfig();
+        
+        // Usar la configuración guardada o la por defecto
+        const configToUse = response?.config || {
+          host: 'localhost',
+          port: 3306,
+          user: 'tickets_user',
+          password: 'tickets2026',
+          database: 'tickets_db'
+        };
+        
+        setMysqlConfig(configToUse);
+        
+        // Probar la conexión automáticamente con la configuración cargada
+        try {
+          if ((window.electronAPI as any).testMysqlConnection) {
+            const result = await (window.electronAPI as any).testMysqlConnection(configToUse);
+            
+            if (result.success) {
+              setConnectionTested(true);
+            }
+          }
+        } catch (error) {
+          // Si falla la conexión automática, no hacemos nada
+          // El usuario tendrá que probar manualmente
+        }
+      }
+    } catch (error) {
+      console.error('Error al cargar configuración MySQL:', error);
+    }
+  };
 
   useEffect(() => {
     checkCurrentUser();
+    loadMysqlConfig();
     
     // Listen for menu actions
     const handleMenuAction = (event: CustomEvent) => {
@@ -172,6 +243,58 @@ function App() {
     }
   };
 
+  const handleSaveMysqlConfig = async () => {
+    setSavingConfig(true);
+    setMysqlConfigError('');
+    
+    try {
+      if (window.electronAPI && (window.electronAPI as any).saveMysqlConfig) {
+        const result = await (window.electronAPI as any).saveMysqlConfig(mysqlConfig);
+        
+        if (result.success) {
+          setMysqlConfigError('');
+          await showSuccess('Configuración guardada correctamente.\n\nLa aplicación se reiniciará para aplicar los cambios.');
+          
+          // Reiniciar la aplicación automáticamente después de 1 segundo
+          setTimeout(() => {
+            if (window.electronAPI && (window.electronAPI as any).relaunchApp) {
+              (window.electronAPI as any).relaunchApp();
+            }
+          }, 1000);
+        } else {
+          setMysqlConfigError(result.error || 'Error al guardar configuración');
+        }
+      }
+    } catch (error: any) {
+      setMysqlConfigError(error.message || 'Error al guardar configuración');
+    } finally {
+      setSavingConfig(false);
+    }
+  };
+
+  const handleTestMysqlConnection = async () => {
+    setMysqlConfigError('');
+    setTestingConnection(true);
+    setConnectionTested(false);
+    
+    try {
+      if (window.electronAPI && (window.electronAPI as any).testMysqlConnection) {
+        const result = await (window.electronAPI as any).testMysqlConnection(mysqlConfig);
+        
+        if (result.success) {
+          setConnectionTested(true);
+          await showSuccess(`Conexión exitosa!\n\nBase de datos: ${result.database}\nTablas encontradas: ${result.tables}`);
+        } else {
+          setMysqlConfigError(result.error || 'Error de conexión');
+        }
+      }
+    } catch (error: any) {
+      setMysqlConfigError(error.message || 'Error al probar conexión');
+    } finally {
+      setTestingConnection(false);
+    }
+  };
+
   if (isLoggedIn && currentUser) {
     if (currentUser.rol === 'admin') {
       return <AdminDashboard user={currentUser} onLogout={handleLogout} />;
@@ -182,8 +305,8 @@ function App() {
 
   return (
     <div className="h-screen flex overflow-hidden bg-gray-50">
-      {/* Left Side - Brand Section */}
-      <div className="hidden lg:flex lg:w-2/5 relative bg-gradient-to-br from-[#1D324D] to-[#457373] overflow-hidden">
+      {/* Left Side - Brand Section with MySQL Config */}
+      <div className="hidden lg:flex lg:w-2/5 relative bg-gradient-to-br from-[#1D324D] to-[#457373] overflow-hidden flex-col">
         {/* Animated Background Pattern */}
         <div className="absolute inset-0 opacity-10">
           <div className="absolute top-0 left-0 w-full h-full" style={{
@@ -199,26 +322,188 @@ function App() {
         </div>
         
         {/* Content */}
-        <div className="relative z-10 flex flex-col justify-center items-start px-12 w-full">
-          {/* Logo/Icon */}
-          <div className="mb-8">
-            <div className="w-14 h-14 bg-white/10 backdrop-blur-sm rounded-xl flex items-center justify-center border border-white/20">
-              <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21L9 10.5M5 5v8a2 2 0 002 2h2m0 0v2a2 2 0 002 2h2m2-2a2 2 0 012-2V9a2 2 0 00-2-2H9" />
-              </svg>
+        <div className="relative z-10 flex flex-col justify-between h-full py-12 px-12">
+          {/* Top Section - Branding */}
+          <div>
+            {/* Logo/Icon */}
+            <div className="mb-8">
+              <div className="w-14 h-14 bg-white/10 backdrop-blur-sm rounded-xl flex items-center justify-center border border-white/20">
+                <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21L9 10.5M5 5v8a2 2 0 002 2h2m0 0v2a2 2 0 002 2h2m2-2a2 2 0 012-2V9a2 2 0 00-2-2H9" />
+                </svg>
+              </div>
             </div>
+            
+            {/* Title */}
+            <h1 className="text-4xl font-light text-white mb-3 tracking-tight">
+              Sistema de<br />
+              <span className="font-semibold">Tickets</span>
+            </h1>
+            
+            {/* Description */}
+            <p className="text-white/70 text-base max-w-xs leading-relaxed">
+              Gestión y control de ventas con tecnología QR
+            </p>
           </div>
-          
-          {/* Title */}
-          <h1 className="text-4xl font-light text-white mb-3 tracking-tight">
-            Sistema de<br />
-            <span className="font-semibold">Tickets</span>
-          </h1>
-          
-          {/* Description */}
-          <p className="text-white/70 text-base max-w-xs leading-relaxed">
-            Gestión y control de ventas con tecnología QR
-          </p>
+
+          {/* Bottom Section - MySQL Configuration */}
+          <div className="mt-auto">
+            <button
+              onClick={() => setShowMysqlConfig(!showMysqlConfig)}
+              className="w-full bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl px-4 py-3 text-white hover:bg-white/15 transition-all duration-200 flex items-center justify-between mb-4"
+            >
+              <div className="flex items-center gap-3">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+                </svg>
+                <span className="text-sm font-medium">Configuración del servidor</span>
+              </div>
+              <svg 
+                className={`w-5 h-5 transition-transform duration-200 ${showMysqlConfig ? 'rotate-180' : ''}`} 
+                fill="none" 
+                viewBox="0 0 24 24" 
+                stroke="currentColor"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            {/* MySQL Config Panel (Collapsible) */}
+            {showMysqlConfig && (
+              <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-4 space-y-3 max-h-[calc(100vh-450px)] overflow-y-auto">
+                <p className="text-white/80 text-xs mb-3">
+                  Configura la conexión al servidor MySQL. Usa <span className="font-semibold">localhost</span> si es el PC principal.
+                </p>
+
+                {/* Host */}
+                <div>
+                  <label className="block text-white/90 text-xs font-medium mb-1.5">Servidor (IP o localhost)</label>
+                  <input
+                    type="text"
+                    value={mysqlConfig.host}
+                    onChange={(e) => handleMysqlConfigChange('host', e.target.value)}
+                    className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/40 text-sm focus:outline-none focus:ring-2 focus:ring-white/30 focus:border-transparent"
+                    placeholder="localhost o 192.168.1.100"
+                  />
+                </div>
+
+                {/* Port */}
+                <div>
+                  <label className="block text-white/90 text-xs font-medium mb-1.5">Puerto</label>
+                  <input
+                    type="number"
+                    value={mysqlConfig.port}
+                    onChange={(e) => handleMysqlConfigChange('port', parseInt(e.target.value) || 3306)}
+                    className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/40 text-sm focus:outline-none focus:ring-2 focus:ring-white/30 focus:border-transparent"
+                    placeholder="3306"
+                  />
+                </div>
+
+                {/* Usuario */}
+                <div>
+                  <label className="block text-white/90 text-xs font-medium mb-1.5">Usuario BD</label>
+                  <input
+                    type="text"
+                    value={mysqlConfig.user}
+                    onChange={(e) => handleMysqlConfigChange('user', e.target.value)}
+                    className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/40 text-sm focus:outline-none focus:ring-2 focus:ring-white/30 focus:border-transparent"
+                    placeholder="tickets_user"
+                  />
+                </div>
+
+                {/* Contraseña */}
+                <div>
+                  <label className="block text-white/90 text-xs font-medium mb-1.5">Contraseña BD</label>
+                  <input
+                    type="password"
+                    value={mysqlConfig.password}
+                    onChange={(e) => handleMysqlConfigChange('password', e.target.value)}
+                    className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/40 text-sm focus:outline-none focus:ring-2 focus:ring-white/30 focus:border-transparent"
+                    placeholder="••••••••"
+                  />
+                </div>
+
+                {/* Base de datos */}
+                <div>
+                  <label className="block text-white/90 text-xs font-medium mb-1.5">Base de Datos</label>
+                  <input
+                    type="text"
+                    value={mysqlConfig.database}
+                    onChange={(e) => handleMysqlConfigChange('database', e.target.value)}
+                    className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/40 text-sm focus:outline-none focus:ring-2 focus:ring-white/30 focus:border-transparent"
+                    placeholder="tickets_db"
+                  />
+                </div>
+
+                {/* Error Message */}
+                {mysqlConfigError && (
+                  <div className="bg-red-500/20 border border-red-500/30 rounded-lg p-2">
+                    <p className="text-red-200 text-xs">{mysqlConfigError}</p>
+                  </div>
+                )}
+
+                {/* Action Buttons */}
+                <div className="flex gap-2 pt-2">
+                  <button
+                    onClick={handleTestMysqlConnection}
+                    disabled={testingConnection}
+                    className="flex-1 bg-white/10 hover:bg-white/20 border border-white/20 text-white px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {testingConnection ? (
+                      <>
+                        <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Probando...
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Probar
+                      </>
+                    )}
+                  </button>
+                  <button
+                    onClick={handleSaveMysqlConfig}
+                    disabled={savingConfig || !connectionTested}
+                    className="flex-1 bg-white hover:bg-white/90 text-[#1D324D] px-3 py-2 rounded-lg text-xs font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    title={!connectionTested ? 'Primero debes probar la conexión exitosamente' : ''}
+                  >
+                    {savingConfig ? (
+                      <>
+                        <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Guardando...
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                        </svg>
+                        Guardar
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {/* Info messages */}
+                {!connectionTested && (
+                  <div className="bg-yellow-500/20 border border-yellow-500/30 rounded-lg p-2 mt-2">
+                    <p className="text-yellow-200 text-xs">⚠️ Primero debes probar la conexión exitosamente</p>
+                  </div>
+                )}
+
+                <p className="text-white/60 text-[10px] pt-2 italic">
+                  * La aplicación se reiniciará después de guardar
+                </p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -336,6 +621,9 @@ function App() {
           <div className="mt-6 text-center">
             <p className="text-xs text-gray-500">
               Sistema de Gestión de Tickets © 2025
+            </p>
+            <p className="text-xs text-gray-400 mt-1">
+              Versión {packageJson.version}
             </p>
           </div>
         </div>

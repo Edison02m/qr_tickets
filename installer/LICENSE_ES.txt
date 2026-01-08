@@ -1,0 +1,133 @@
+CONTRATO DE LICENCIA DE USO
+Sistema Tickets - Desarrollado por Telcomexpert S.A.
+
+-----------------------------------------------------------------------
+
+Este software es propiedad exclusiva de Telcomexpert S.A.
+
+Al instalar y utilizar este software, usted acepta los siguientes terminos:
+
+-----------------------------------------------------------------------
+
+1. LICENCIA DE USO
+
+Se le otorga a la empresa licenciataria una licencia perpetua, no exclusiva e intransferible para usar este software de gestion de sistemas de parking.
+
+1.1 ALCANCE DE LA LICENCIA:
+- Esta licencia es por empresa/organizacion, no por usuario individual
+- Permite la instalacion en un numero ilimitado de dispositivos dentro de las instalaciones de la empresa licenciataria
+- Permite un numero ilimitado de usuarios dentro de la organizacion licenciataria
+- El software debe utilizarse exclusivamente para la gestion y control de sistemas de parking de la empresa licenciataria
+
+-----------------------------------------------------------------------
+
+2. RESTRICCIONES
+
+- No esta permitido copiar, modificar o distribuir este software a terceros
+- No esta permitido realizar ingenieria inversa, descompilar o desensamblar el software
+- No esta permitido sublicenciar, alquilar, arrendar o transferir este software a terceros fuera de la organizacion licenciataria
+- El software no puede ser utilizado para prestar servicios a terceros (uso como SaaS o bureau) sin autorizacion escrita de Telcomexpert S.A.
+- Se permite realizar una (1) copia de seguridad del software unicamente para fines de respaldo
+
+-----------------------------------------------------------------------
+
+3. ACTUALIZACIONES Y MANTENIMIENTO
+
+3.1 Las actualizaciones menores y parches de seguridad seran proporcionadas sin costo adicional durante los primeros 12 meses desde la fecha de instalacion.
+
+3.2 Las actualizaciones mayores y nuevas funcionalidades pueden tener costo adicional segun tarifa vigente.
+
+3.3 Telcomexpert S.A. se reserva el derecho de descontinuar el soporte para versiones antiguas del software con 6 meses de anticipacion mediante notificacion escrita.
+
+-----------------------------------------------------------------------
+
+4. PROPIEDAD INTELECTUAL
+
+Todos los derechos de propiedad intelectual, incluyendo pero no limitado a derechos de autor, marcas comerciales, secretos comerciales y patentes sobre este software pertenecen exclusivamente a Telcomexpert S.A. 
+
+Esta licencia no transfiere ningun derecho de propiedad sobre el software.
+
+-----------------------------------------------------------------------
+
+5. PROTECCION DE DATOS
+
+5.1 Los datos generados y almacenados por el software son propiedad de la empresa licenciataria.
+
+5.2 Telcomexpert S.A. se compromete a no acceder a dichos datos sin autorizacion expresa, excepto cuando sea estrictamente necesario para proporcionar soporte tecnico.
+
+5.3 La empresa licenciataria es responsable de mantener copias de seguridad periodicas de sus datos.
+
+-----------------------------------------------------------------------
+
+6. AUDITORIA Y CUMPLIMIENTO
+
+Telcomexpert S.A. se reserva el derecho de verificar el cumplimiento de los terminos de esta licencia mediante auditoria, previa notificacion con 15 dias de anticipacion.
+
+-----------------------------------------------------------------------
+
+7. TERMINACION
+
+7.1 Esta licencia puede ser terminada si:
+- La empresa licenciataria viola cualquier termino de este acuerdo
+- La empresa licenciataria no paga las tarifas acordadas (si aplica)
+- Se detecta uso no autorizado o fraudulento del software
+
+7.2 Al terminar la licencia, la empresa licenciataria debe:
+- Cesar inmediatamente el uso del software
+- Desinstalar el software de todos los dispositivos
+- Destruir todas las copias del software en su posesion
+- Certificar por escrito el cumplimiento de lo anterior
+
+-----------------------------------------------------------------------
+
+8. LIMITACION DE RESPONSABILIDAD
+
+8.1 Este software se proporciona "tal cual" sin garantias de ningun tipo, expresas o implicitas.
+
+8.2 Telcomexpert S.A. no garantiza que el software este libre de errores o que funcionara sin interrupciones.
+
+8.3 Telcomexpert S.A. no sera responsable por:
+- Perdida de datos o informacion
+- Danos directos, indirectos, incidentales o consecuentes
+- Perdida de beneficios o interrupciones del negocio
+- Danos que excedan el monto pagado por la licencia
+
+8.4 La empresa licenciataria es responsable de mantener copias de seguridad adecuadas de sus datos y de la correcta operacion de los equipos de hardware asociados.
+
+-----------------------------------------------------------------------
+
+9. GARANTIA LIMITADA
+
+Telcomexpert S.A. garantiza que el software funcionara sustancialmente de acuerdo con la documentacion proporcionada durante 90 dias desde la fecha de instalacion. 
+
+Esta es la unica garantia proporcionada. Despues de este periodo, cualquier correccion de errores criticos estara sujeta a los terminos de mantenimiento vigentes.
+
+-----------------------------------------------------------------------
+
+10. DISPOSICIONES GENERALES
+
+10.1 Este contrato constituye el acuerdo completo entre las partes y reemplaza cualquier acuerdo previo, oral o escrito.
+
+10.2 Cualquier modificacion a este contrato debe hacerse por escrito y ser firmada por ambas partes.
+
+10.3 Si alguna disposicion de este contrato es declarada invalida o inaplicable, las demas disposiciones permaneceran en pleno vigor.
+
+10.4 La falta de ejercicio o demora en el ejercicio de cualquier derecho bajo este contrato no constituye renuncia al mismo.
+
+10.5 Este contrato es vinculante para las partes, sus sucesores y cesionarios autorizados.
+
+-----------------------------------------------------------------------
+
+11. ACEPTACION
+
+Al instalar, copiar o utilizar este software, usted reconoce que ha leido, comprendido y acepta estar sujeto a los terminos y condiciones de este contrato de licencia.
+
+Si no esta de acuerdo con estos terminos, no instale ni utilice el software.
+
+-----------------------------------------------------------------------
+
+(c) 2026 Telcomexpert S.A. - Todos los derechos reservados.
+
+Version del contrato: 1.0 | Fecha: Enero 2026
+
+-----------------------------------------------------------------------

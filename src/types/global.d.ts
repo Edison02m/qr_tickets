@@ -54,19 +54,21 @@ interface BotonConfigRequest {
 interface ConfigLog {
   id: number;
   accion: 'crear' | 'modificar' | 'eliminar';
-  tabla_afectada: 'puertas' | 'config_relay' | 'tipos_ticket' | 'botones_tickets';
+  tabla_afectada: 'puertas' | 'config_relay' | 'tipos_ticket' | 'botones_tickets' | 'usuarios';
   registro_id: number;
   descripcion: string;
   datos_anteriores: any; // JSON object
   datos_nuevos: any; // JSON object
   fecha_hora: string;
   ip_address?: string;
+  usuario_id?: number;
+  usuario_nombre?: string;
 }
 
 interface ConfigLogFiltros {
   limit?: number;
   offset?: number;
-  tabla?: string;
+  tabla_afectada?: string;
   accion?: string;
   fecha_desde?: string;
   fecha_hasta?: string;
@@ -76,6 +78,34 @@ interface EstadisticaLog {
   tabla_afectada: string;
   accion: string;
   total: number;
+}
+
+// Interfaces para Control de Acceso QR
+interface ControlAccesoLogEntry {
+  timestamp: string;
+  level: string;
+  message: string;
+}
+
+interface ControlAccesoStatus {
+  running: boolean;
+  uptime?: number;
+  conectado?: boolean;
+}
+
+// Interfaces para diálogos
+interface DialogMessageOptions {
+  message: string;
+  title?: string;
+  type?: 'none' | 'info' | 'error' | 'question' | 'warning';
+  buttons?: string[];
+  defaultId?: number;
+  cancelId?: number;
+}
+
+interface DialogConfirmOptions {
+  message: string;
+  title?: string;
 }
 
 // Declaraciones globales para window.electronAPI
@@ -89,6 +119,8 @@ declare global {
       upsertCashClosure: (data: any) => Promise<any>;
       getCashClosureByDateAndUser: (usuario_id: number, fecha_inicio: string) => Promise<any>;
       getAllCashClosuresByDate: (fecha: string) => Promise<any>;
+      closeCashClosure: (cierreId: number) => Promise<any>;
+      reopenCashClosure: (cierreId: number) => Promise<any>;
       
       // Autenticación
       login: (credentials: { usuario: string; password: string }) => Promise<any>;
@@ -97,6 +129,10 @@ declare global {
       
       // Gestión de menú
       setMenu: (role: string) => Promise<void>;
+      
+      // Sistema de diálogos (fix focus bug)
+      showMessage: (options: DialogMessageOptions) => Promise<{ response: number; checkboxChecked?: boolean }>;
+      showConfirm: (options: DialogConfirmOptions) => Promise<boolean>;
       
       // Sistema de tickets
       getTicketTypes: () => Promise<TicketType[]>;
@@ -138,18 +174,29 @@ declare global {
       getConfigRelay: () => Promise<ConfigRelay>;
       updateConfigRelay: (data: any) => Promise<ConfigRelay>;
       
-      // Configuración de Botones de Impresión Automática
-      configurarBoton: (config: BotonConfigRequest) => Promise<BotonConfig>;
-      obtenerConfigBotones: () => Promise<BotonConfig[]>;
+      // Configuración de Botones de Impresión Automática (solo para servidor HTTP)
       obtenerBotonPorInput: (input_numero: number) => Promise<BotonConfig | null>;
-      desactivarBoton: (input_numero: number) => Promise<{ success: boolean; message: string }>;
-      eliminarBoton: (input_numero: number) => Promise<{ success: boolean; message: string }>;
+      obtenerConfigBotones: () => Promise<BotonConfig[]>;
+      configurarBoton: (data: BotonConfigRequest) => Promise<BotonConfig>;
+      desactivarBoton: (input_numero: number) => Promise<void>;
+      eliminarBoton: (input_numero: number) => Promise<void>;
       
       // Logs de configuración
-      cargarConfigLogs: (filtros?: ConfigLogFiltros) => Promise<ConfigLog[]>;
+      obtenerConfigLogs: (filtros?: ConfigLogFiltros) => Promise<ConfigLog[]>;
       contarConfigLogs: (filtros?: ConfigLogFiltros) => Promise<number>;
       obtenerEstadisticasLogs: () => Promise<EstadisticaLog[]>;
       obtenerHistorialRegistro: (tabla: string, registro_id: number) => Promise<ConfigLog[]>;
+      
+      // Control de Acceso QR - Logs y Servicio
+      getControlAccesoLogs: (logType: 'accesos' | 'errores', maxLines: number) => Promise<ControlAccesoLogEntry[]>;
+      getControlAccesoStatus: () => Promise<ControlAccesoStatus>;
+      restartControlAccesoService: () => Promise<{ success: boolean; error?: string }>;
+      clearControlAccesoLogs: (logType: 'accesos' | 'errores') => Promise<{ success: boolean; error?: string }>;
+      
+      // Configuración de MySQL
+      testMysqlConnection: (config: any) => Promise<any>;
+      saveMysqlConfig: (config: any) => Promise<any>;
+      getMysqlConfig: () => Promise<any>;
     };
   }
 }

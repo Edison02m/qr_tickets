@@ -1,5 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 
+// Helper para obtener fecha local en formato YYYY-MM-DD (sin UTC)
+const getLocalDateString = (): string => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 interface VentaDiariaDetalle {
   tipo_ticket: string;
   cantidad_tickets: number;
@@ -17,8 +26,8 @@ const VentasDiarias: React.FC = () => {
   const [ventasSummary, setVentasSummary] = useState<VentaDiariaSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [fechaConsulta, setFechaConsulta] = useState<string>(() => {
-    // Fecha actual por defecto
-    return new Date().toISOString().split('T')[0];
+    // Fecha actual por defecto (hora local, no UTC)
+    return getLocalDateString();
   });
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -151,7 +160,7 @@ const VentasDiarias: React.FC = () => {
                         ></div>
                       </div>
                       <p className="text-xs text-gray-500 mt-0.5">
-                        {((detalle.total_tipo / ventasSummary.total_ventas) * 100).toFixed(1)}%
+                        {Number((Number(detalle.total_tipo || 0) / Number(ventasSummary.total_ventas || 1)) * 100).toFixed(1)}%
                       </p>
                     </div>
                   </div>

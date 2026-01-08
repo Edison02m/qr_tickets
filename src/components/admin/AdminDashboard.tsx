@@ -3,6 +3,8 @@ import TicketTypesAdmin from './TicketTypesAdmin';
 import UsersAdmin from './UsersAdmin';
 import PuertasAdmin from './PuertasAdmin';
 import ConfigRelayAdmin from './ConfigRelayAdmin';
+import ConfigImpresionAdmin from './ConfigImpresionAdmin';
+import ControlAccesoAdmin from './ControlAccesoAdmin';
 
 interface AdminDashboardProps {
   user: {
@@ -34,8 +36,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
         case 'config-relay':
           setCurrentView('config-relay');
           break;
-        case 'config-botones':
-          setCurrentView('config-botones');
+        case 'config-impresion':
+          setCurrentView('config-impresion');
           break;
         case 'cash-closure':
           setCurrentView('cash-closure');
@@ -45,6 +47,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
           break;
         case 'config-logs':
           setCurrentView('config-logs');
+          break;
+        case 'control-acceso':
+          setCurrentView('control-acceso');
           break;
         default:
           setCurrentView('main');
@@ -61,7 +66,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
   // Importar componentes
   const DailySalesAdmin = require('./DailySalesAdmin').default;
   const CashClosureAdmin = require('./CashClosureAdmin').default;
-  const ConfigBotonesAdmin = require('./ConfigBotonesAdmin').default;
   const AdminConfigLogs = require('./AdminConfigLogs').default;
 
   const renderContent = () => {
@@ -74,14 +78,16 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
         return <PuertasAdmin />;
       case 'config-relay':
         return <ConfigRelayAdmin />;
-      case 'config-botones':
-        return <ConfigBotonesAdmin />;
+      case 'config-impresion':
+        return <ConfigImpresionAdmin />;
       case 'cash-closure':
         return <CashClosureAdmin userId={user.id} userRole={user.rol} />;
       case 'daily-sales':
         return <DailySalesAdmin />;
       case 'config-logs':
         return <AdminConfigLogs />;
+      case 'control-acceso':
+        return <ControlAccesoAdmin />;
       default:
         return (
           <div className="space-y-6">
@@ -166,6 +172,24 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
                 </div>
               </button>
 
+              {/* Configuración de Impresión */}
+              <button
+                onClick={() => setCurrentView('config-impresion')}
+                className="group bg-white rounded-xl p-6 border border-gray-200 hover:border-[#457373] hover:shadow-md transition-all duration-200 text-left"
+              >
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-lg bg-[#457373]/5 flex items-center justify-center group-hover:bg-[#457373] transition-colors duration-200">
+                    <svg className="w-6 h-6 text-[#457373] group-hover:text-white transition-colors duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-base font-medium text-[#1D324D] mb-1">Configuración de Impresión</h3>
+                    <p className="text-sm text-[#1D324D]/60">Impresora y opciones</p>
+                  </div>
+                </div>
+              </button>
+
               {/* Ventas */}
               <button
                 onClick={() => setCurrentView('daily-sales')}
@@ -202,24 +226,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
                 </div>
               </button>
 
-              {/* Botones de Impresión */}
-              <button
-                onClick={() => setCurrentView('config-botones')}
-                className="group bg-white rounded-xl p-6 border border-gray-200 hover:border-[#457373] hover:shadow-md transition-all duration-200 text-left"
-              >
-                <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-lg bg-purple-500/5 flex items-center justify-center group-hover:bg-purple-500 transition-colors duration-200">
-                    <svg className="w-6 h-6 text-purple-500 group-hover:text-white transition-colors duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-                    </svg>
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-base font-medium text-[#1D324D] mb-1">Botones de Impresión</h3>
-                    <p className="text-sm text-[#1D324D]/60">Configurar botones físicos</p>
-                  </div>
-                </div>
-              </button>
-
               {/* Historial de Configuración */}
               <button
                 onClick={() => setCurrentView('config-logs')}
@@ -234,6 +240,24 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
                   <div className="flex-1">
                     <h3 className="text-base font-medium text-[#1D324D] mb-1">Historial de Configuración</h3>
                     <p className="text-sm text-[#1D324D]/60">Logs de cambios del sistema</p>
+                  </div>
+                </div>
+              </button>
+
+              {/* Control de Acceso QR */}
+              <button
+                onClick={() => setCurrentView('control-acceso')}
+                className="group bg-white rounded-xl p-6 border border-gray-200 hover:border-[#457373] hover:shadow-md transition-all duration-200 text-left"
+              >
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-lg bg-emerald-500/5 flex items-center justify-center group-hover:bg-emerald-500 transition-colors duration-200">
+                    <svg className="w-6 h-6 text-emerald-500 group-hover:text-white transition-colors duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-base font-medium text-[#1D324D] mb-1">Control de Acceso</h3>
+                    <p className="text-sm text-[#1D324D]/60">Logs del servicio QR</p>
                   </div>
                 </div>
               </button>

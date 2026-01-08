@@ -109,16 +109,24 @@ const UsersAdmin: React.FC = () => {
 		}
 			try {
 				if (window.electronAPI) {
+					let result;
 					if (editingId) {
-						await window.electronAPI.updateUser({
+						result = await window.electronAPI.updateUser({
 							id: editingId,
 							nombre: form.nombre,
 							usuario: form.usuario,
 							rol: form.rol,
 						});
 					} else {
-						await window.electronAPI.createUser(form);
+						result = await window.electronAPI.createUser(form);
 					}
+					
+					// Verificar si la operación falló
+					if (result && !result.success) {
+						setError(result.error || 'Error al guardar usuario');
+						return;
+					}
+					
 					await loadUsers();
 					handleCloseDialog();
 				}
@@ -149,7 +157,14 @@ const UsersAdmin: React.FC = () => {
 		}
 		try {
 			if (window.electronAPI && selectedUserId) {
-				await window.electronAPI.changeUserPassword(selectedUserId, passwordValue);
+				const result = await window.electronAPI.changeUserPassword(selectedUserId, passwordValue);
+				
+				// Verificar si la operación falló
+				if (result && !result.success) {
+					setError(result.error || 'Error al cambiar la contraseña');
+					return;
+				}
+				
 				handleClosePasswordDialog();
 			}
 		} catch (err) {
@@ -160,7 +175,14 @@ const UsersAdmin: React.FC = () => {
 	const handleToggleActive = async (user: User) => {
 		try {
 			if (window.electronAPI) {
-				await window.electronAPI.toggleUserStatus(user.id, !user.activo);
+				const result = await window.electronAPI.toggleUserStatus(user.id, !user.activo);
+				
+				// Verificar si la operación falló
+				if (result && !result.success) {
+					setError(result.error || 'Error al cambiar estado');
+					return;
+				}
+				
 				await loadUsers();
 			}
 		} catch (err) {

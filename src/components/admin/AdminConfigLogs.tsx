@@ -8,19 +8,21 @@ const getAPI = () => (window as any).electronAPI || {};
 interface ConfigLog {
   id: number;
   accion: 'crear' | 'modificar' | 'eliminar';
-  tabla_afectada: 'puertas' | 'config_relay' | 'tipos_ticket' | 'botones_tickets';
+  tabla_afectada: 'puertas' | 'config_relay' | 'tipos_ticket' | 'botones_tickets' | 'usuarios';
   registro_id: number;
   descripcion: string;
   datos_anteriores: any; // JSON object
   datos_nuevos: any; // JSON object
   fecha_hora: string;
   ip_address?: string;
+  usuario_id?: number;
+  usuario_nombre?: string;
 }
 
 interface ConfigLogFiltros {
   limit?: number;
   offset?: number;
-  tabla?: string;
+  tabla_afectada?: string;  // Cambiado de 'tabla' a 'tabla_afectada'
   accion?: string;
   fecha_desde?: string;
   fecha_hasta?: string;
@@ -63,7 +65,7 @@ const AdminConfigLogs: React.FC = () => {
         offset: (paginaActual - 1) * registrosPorPagina
       };
 
-      if (tablaFiltro) filtrosAplicados.tabla = tablaFiltro;
+      if (tablaFiltro) filtrosAplicados.tabla_afectada = tablaFiltro;
       if (accionFiltro) filtrosAplicados.accion = accionFiltro;
       if (fechaDesde) filtrosAplicados.fecha_desde = fechaDesde;
       if (fechaHasta) filtrosAplicados.fecha_hasta = fechaHasta;
@@ -74,8 +76,26 @@ const AdminConfigLogs: React.FC = () => {
         api.contarConfigLogs ? api.contarConfigLogs(filtrosAplicados) : Promise.resolve(0)
       ]);
 
-      setLogs(logsData);
-      setTotal(totalData);
+      // Validar que logsData sea un array
+      if (Array.isArray(logsData)) {
+        setLogs(logsData);
+      } else if (logsData && logsData.error) {
+        // Si hay error en la respuesta
+        setError(logsData.error);
+        setLogs([]);
+      } else {
+        setLogs([]);
+      }
+
+      // Validar que totalData sea un número
+      if (typeof totalData === 'number') {
+        setTotal(totalData);
+      } else if (totalData && totalData.error) {
+        setError(totalData.error);
+        setTotal(0);
+      } else {
+        setTotal(0);
+      }
     } catch (err: any) {
       setError(err.message || 'Error al cargar los logs');
       console.error('Error cargando logs:', err);
@@ -89,9 +109,19 @@ const AdminConfigLogs: React.FC = () => {
     try {
       const api = getAPI();
       const stats = api.obtenerEstadisticasLogs ? await api.obtenerEstadisticasLogs() : [];
-      setEstadisticas(stats);
+      
+      // Validar que stats sea un array
+      if (Array.isArray(stats)) {
+        setEstadisticas(stats);
+      } else if (stats && stats.error) {
+        console.error('Error cargando estadísticas:', stats.error);
+        setEstadisticas([]);
+      } else {
+        setEstadisticas([]);
+      }
     } catch (err) {
       console.error('Error cargando estadísticas:', err);
+      setEstadisticas([]);
     }
   }, []);
 
@@ -200,13 +230,14 @@ const AdminConfigLogs: React.FC = () => {
 
   // Exportar a CSV
   const exportarCSV = () => {
-    const headers = ['Fecha/Hora', 'Acción', 'Tabla', 'ID', 'Descripción'];
+    const headers = ['Fecha/Hora', 'Acción', 'Tabla', 'ID', 'Descripción', 'Realizado por'];
     const csvData = logs.map(log => [
       formatearFechaHora(log.fecha_hora),
       log.accion,
       log.tabla_afectada,
       log.registro_id,
-      log.descripcion
+      log.descripcion,
+      log.usuario_nombre || 'Sistema'
     ]);
 
     const csvContent = [
@@ -254,6 +285,7 @@ const AdminConfigLogs: React.FC = () => {
                 className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="">Todas</option>
+                <option value="usuarios">Usuarios</option>
                 <option value="puertas">Puertas</option>
                 <option value="config_relay">Config Relay</option>
                 <option value="tipos_ticket">Tipos de Ticket</option>
@@ -356,6 +388,9 @@ const AdminConfigLogs: React.FC = () => {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Descripción
                       </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Realizado por
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -374,7 +409,15 @@ const AdminConfigLogs: React.FC = () => {
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {log.tabla_afectada}
+                          <span className={`px-2 py-1 inline-flex text-xs leading-5 font-medium rounded ${
+                            log.tabla_afectada === 'usuarios' ? 'bg-purple-100 text-purple-800' :
+                            log.tabla_afectada === 'puertas' ? 'bg-amber-100 text-amber-800' :
+                            log.tabla_afectada === 'tipos_ticket' ? 'bg-cyan-100 text-cyan-800' :
+                            log.tabla_afectada === 'config_relay' ? 'bg-emerald-100 text-emerald-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {log.tabla_afectada}
+                          </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {log.registro_id}
@@ -382,6 +425,18 @@ const AdminConfigLogs: React.FC = () => {
                         <td className="px-6 py-4 text-sm text-gray-900">
                           <div>{log.descripcion}</div>
                           {renderDiferencias(log)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                          {log.usuario_nombre ? (
+                            <span className="flex items-center gap-1">
+                              <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                              </svg>
+                              {log.usuario_nombre}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400 italic">Sistema</span>
+                          )}
                         </td>
                       </tr>
                     ))}

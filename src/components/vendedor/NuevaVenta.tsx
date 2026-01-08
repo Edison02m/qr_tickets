@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import * as ReactDOMServer from 'react-dom/server';
+import { showConfirm as confirmDialog } from '../../utils/dialogs';
 
 interface TicketType {
   id: number;
@@ -132,7 +133,7 @@ const NuevaVenta: React.FC = () => {
           <p><strong>${ticketType?.nombre || ''}</strong></p>
           ${puertaInfo}
           <p>Fecha: ${new Date(ticketVenta.fecha).toLocaleString()}</p>
-          <p>Precio: $${ticketVenta.precio.toFixed(2)}</p>
+          <p>Precio: $${Number(ticketVenta.precio || 0).toFixed(2)}</p>
         </div>
         <div class="ticket-footer">
           <p>Conserve este ticket para su ingreso</p>
@@ -152,26 +153,33 @@ const NuevaVenta: React.FC = () => {
         <meta charset="UTF-8">
         <title>Tickets de Entrada</title>
         <style>
-          @page {
-            size: 80mm 200mm;
+          * {
             margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+          }
+          @page {
+            margin: 0;
+          }
+          html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
           }
           body {
             font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            width: 80mm;
             background: white;
             color: black;
           }
           .ticket {
             text-align: center;
-            padding: 20px;
+            padding: 10mm 5mm;
             border-bottom: 1px dashed black;
-            break-inside: avoid;
-            page-break-after: always;
             background: white;
             color: black;
+            break-inside: avoid;
+            page-break-after: always;
           }
           .ticket:last-child {
             border-bottom: none;
@@ -179,45 +187,46 @@ const NuevaVenta: React.FC = () => {
           .ticket-header {
             font-size: 18px;
             font-weight: bold;
-            margin-bottom: 15px;
+            margin-bottom: 10px;
             color: black;
           }
           .qr-code {
-            margin: 15px auto;
-            padding: 10px;
+            margin: 10px auto;
+            padding: 5px;
             background: white;
             width: fit-content;
           }
           .qr-code svg {
             width: 150px;
             height: 150px;
+            display: block;
           }
           .ticket-info {
-            margin: 15px 0;
+            margin: 10px 0;
             font-size: 14px;
             line-height: 1.5;
             color: black;
           }
           .ticket-info p {
-            margin: 5px 0;
+            margin: 3px 0;
             color: black;
           }
           .ticket-footer {
-            margin-top: 15px;
-            padding-top: 10px;
+            margin-top: 10px;
+            padding-top: 5px;
             font-size: 12px;
             color: black;
           }
+          .ticket-footer p {
+            margin: 3px 0;
+          }
           @media print {
-            body {
-              width: 100%;
+            @page {
+              margin: 0;
+            }
+            html, body {
+              margin: 0;
               padding: 0;
-            }
-            .ticket {
-              page-break-after: always;
-            }
-            .ticket:last-child {
-              page-break-after: avoid;
             }
           }
         </style>
@@ -262,6 +271,15 @@ const NuevaVenta: React.FC = () => {
           try {
             // Generar el código QR en el formato NUEVO (4 partes, sin puerta)
             const qrCode = generarCodigoQR(selectedTicket.ticket.nombre);
+            
+            console.log('🎫 Frontend - Generando venta:', {
+              ticketId: selectedTicket.ticket.id,
+              ticketNombre: selectedTicket.ticket.nombre,
+              precio: selectedTicket.ticket.precio,
+              qrCode,
+              index: i + 1,
+              total: selectedTicket.cantidad
+            });
 
             // Crear la venta en la base de datos con el código QR
             // puerta_codigo se envía como undefined (nuevo sistema multi-puerta)
@@ -272,10 +290,21 @@ const NuevaVenta: React.FC = () => {
               undefined
             );
 
+            console.log('✅ Frontend - Resultado de createSale:', result);
+
+            // Verificar si la operación falló
+            if (result && !result.success) {
+              console.error('❌ Frontend - Venta falló:', result.error);
+              throw new Error(result.error || 'Error en la respuesta del servidor');
+            }
+
             // Usar el código QR generado en el frontend para impresión y registro
             if (!result || !result.ventaId) {
+              console.error('❌ Frontend - Respuesta sin ventaId:', result);
               throw new Error('Error en la respuesta del servidor');
             }
+
+            console.log('✅ Frontend - Ticket procesado exitosamente:', result.ventaId);
 
             ticketsVendidos.push({
               ...result,
@@ -289,7 +318,7 @@ const NuevaVenta: React.FC = () => {
             });
 
           } catch (error) {
-            console.error('Error al procesar ticket:', error);
+            console.error('❌ Frontend - Error al procesar ticket:', error);
             setError(`Error al procesar ticket ${selectedTicket.ticket.nombre}. Por favor, intente nuevamente.`);
             return;
           }
@@ -372,11 +401,11 @@ const NuevaVenta: React.FC = () => {
 
     // Crear mensaje de confirmación detallado
     const mensajeConfirmacion = `¿Confirmar venta de:\n${selectedTickets
-      .map(item => `- ${item.cantidad} ${item.ticket.nombre} ($${(item.ticket.precio * item.cantidad).toFixed(2)})`)
-      .join('\n')}\n\nTotal: $${totalVenta.toFixed(2)}`;
+      .map(item => `- ${item.cantidad} ${item.ticket.nombre} ($${Number(item.ticket.precio * item.cantidad || 0).toFixed(2)})`)
+      .join('\n')}\n\nTotal: $${Number(totalVenta || 0).toFixed(2)}`;
 
     // Mostrar confirmación
-    const confirmar = window.confirm(mensajeConfirmacion);
+    const confirmar = await confirmDialog(mensajeConfirmacion, 'Confirmar Venta');
 
     if (confirmar) {
       await procesarEImprimirVenta();
@@ -434,7 +463,7 @@ const NuevaVenta: React.FC = () => {
                     <div className="flex-1">
                       <h3 className="font-medium text-[#1D324D] text-base mb-0.5">{ticket.nombre}</h3>
                       <p className="text-xs text-[#7C4935]/70 mb-1">
-                        ${ticket.precio.toFixed(2)} c/u
+                        ${Number(ticket.precio || 0).toFixed(2)} c/u
                       </p>
                       {/* Mostrar puertas del nuevo formato (array) */}
                       {ticket.puertas && ticket.puertas.length > 0 && (
@@ -512,7 +541,7 @@ const NuevaVenta: React.FC = () => {
                       <div className="text-right">
                         <p className="text-xs text-[#7C4935]/70">Subtotal</p>
                         <p className="font-bold text-sm text-[#457373]">
-                          ${(ticket.precio * selectedCount).toFixed(2)}
+                          ${Number(ticket.precio * selectedCount || 0).toFixed(2)}
                         </p>
                       </div>
                     )}
@@ -565,7 +594,7 @@ const NuevaVenta: React.FC = () => {
                       <li key={ticket.id} className="flex justify-between items-start p-2 bg-white/50 rounded-lg border border-[#DFE4E4]/30">
                         <div className="flex-1">
                           <span className="text-xs font-medium text-[#1D324D]">{cantidad} × {ticket.nombre}</span>
-                          <p className="text-xs text-[#7C4935]/70">${ticket.precio.toFixed(2)} c/u</p>
+                          <p className="text-xs text-[#7C4935]/70">${Number(ticket.precio || 0).toFixed(2)} c/u</p>
                           {/* Mostrar puertas del nuevo formato (array) */}
                           {ticket.puertas && ticket.puertas.length > 0 && (
                             <div className="flex items-start gap-1 mt-0.5">
@@ -593,7 +622,7 @@ const NuevaVenta: React.FC = () => {
                             </div>
                           )}
                         </div>
-                        <span className="font-semibold text-sm text-[#457373] ml-2">${(ticket.precio * cantidad).toFixed(2)}</span>
+                        <span className="font-semibold text-sm text-[#457373] ml-2">${Number(ticket.precio * cantidad || 0).toFixed(2)}</span>
                       </li>
                     ))}
                   </ul>
@@ -603,7 +632,7 @@ const NuevaVenta: React.FC = () => {
                 <div className="border-t border-[#DFE4E4]/30 pt-3 mb-4">
                   <div className="flex justify-between items-center">
                     <span className="text-base font-medium text-[#1D324D]">Total:</span>
-                    <span className="text-xl font-bold text-[#1D324D]">${totalVenta.toFixed(2)}</span>
+                    <span className="text-xl font-bold text-[#1D324D]">${Number(totalVenta || 0).toFixed(2)}</span>
                   </div>
                 </div>
                 

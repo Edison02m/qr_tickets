@@ -1,9 +1,9 @@
 const bcrypt = require('bcryptjs');
-const Database = require('../database/database');
+const Database = require('../database/database'); // Singleton instance
 
 class AuthService {
   constructor() {
-    this.db = new Database();
+    this.db = Database; // Database es ahora una instancia singleton
   }
 
   async login(usuario, password) {

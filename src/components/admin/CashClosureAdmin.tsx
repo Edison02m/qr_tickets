@@ -1,5 +1,37 @@
 import React, { useEffect, useState, useCallback } from 'react';
 
+// Helper para obtener fecha local en formato YYYY-MM-DD (sin UTC)
+const getLocalDateString = (): string => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+// Helper para formatear fechas de MySQL
+const formatDateString = (date: any, length: number = 16): string => {
+  if (!date) return '';
+  if (typeof date === 'string') return date.slice(0, length);
+  if (date instanceof Date) {
+    // Usar fecha local, no UTC
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day} ${hours}:${minutes}`.slice(0, length);
+  }
+  // Si es un timestamp u otro formato, convertir a Date
+  const d = new Date(date);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const hours = String(d.getHours()).padStart(2, '0');
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  return `${year}-${month}-${day} ${hours}:${minutes}`.slice(0, length);
+};
+
 interface CashClosure {
   id: number;
   usuario_id: number;
@@ -81,7 +113,7 @@ const CashClosureAdmin: React.FC<Props> = ({ userId, userRole }) => {
   useEffect(() => {
     fetchCierres();
     if (isAdmin) fetchUsuarios();
-    const hoy = new Date().toISOString().slice(0, 10);
+    const hoy = getLocalDateString();
     setFechaInicio(hoy);
     checkExistingClosure(hoy);
   }, [fetchCierres, fetchUsuarios, checkExistingClosure, isAdmin]);
@@ -101,7 +133,7 @@ const CashClosureAdmin: React.FC<Props> = ({ userId, userRole }) => {
         const total_ventas = summary.total_ventas || 0;
         const cantidad_tickets = summary.total_tickets || 0;
         const detalle_tipos = summary.detalle_por_tipo
-          .map((tipo: any) => `${tipo.tipo_ticket}: ${tipo.cantidad_tickets} tickets, $${tipo.total_tipo.toFixed(2)}`)
+          .map((tipo: any) => `${tipo.tipo_ticket}: ${tipo.cantidad_tickets} tickets, $${Number(tipo.total_tipo || 0).toFixed(2)}`)
           .join(' | ');
         setResumen({ total_ventas, cantidad_tickets, detalle_tipos });
       } else {
@@ -144,6 +176,12 @@ const CashClosureAdmin: React.FC<Props> = ({ userId, userRole }) => {
         cantidad_tickets: resumen.cantidad_tickets,
         detalle_tipos: resumen.detalle_tipos,
       });
+      
+      // Verificar si la operación falló
+      if (result && !result.success) {
+        setError(result.error || 'Error al procesar el cierre de caja');
+        return;
+      }
       
       // Siempre se crea un nuevo registro
       if (result.action === 'created') {
@@ -232,7 +270,7 @@ const CashClosureAdmin: React.FC<Props> = ({ userId, userRole }) => {
             <div className="grid grid-cols-2 gap-2">
               <div className="bg-gray-50 rounded-md p-2 text-center">
                 <div className="text-xs text-gray-500 mb-0.5">Total</div>
-                <div className="text-base font-bold text-[#1D324D]">${resumen.total_ventas.toFixed(2)}</div>
+                <div className="text-base font-bold text-[#1D324D]">${Number(resumen.total_ventas || 0).toFixed(2)}</div>
               </div>
               <div className="bg-gray-50 rounded-md p-2 text-center">
                 <div className="text-xs text-gray-500 mb-0.5">Tickets</div>
@@ -304,7 +342,7 @@ const CashClosureAdmin: React.FC<Props> = ({ userId, userRole }) => {
                 <svg className="w-3.5 h-3.5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clipRule="evenodd" />
                 </svg>
-                <span className="font-semibold text-green-700">${cierresConsolidados.totales.total_ventas.toFixed(2)}</span>
+                <span className="font-semibold text-green-700">${Number(cierresConsolidados.totales.total_ventas || 0).toFixed(2)}</span>
               </div>
             </div>
           </div>
@@ -339,7 +377,7 @@ const CashClosureAdmin: React.FC<Props> = ({ userId, userRole }) => {
                       </span>
                     </td>
                     <td className="px-3 py-2 whitespace-nowrap text-right">
-                      <span className="text-sm font-semibold text-gray-900">${cierre.total_ventas.toFixed(2)}</span>
+                      <span className="text-sm font-semibold text-gray-900">${Number(cierre.total_ventas || 0).toFixed(2)}</span>
                     </td>
                     <td className="px-3 py-2 whitespace-nowrap text-center">
                       <span className="text-xs text-gray-500 font-mono">
@@ -361,7 +399,7 @@ const CashClosureAdmin: React.FC<Props> = ({ userId, userRole }) => {
                     </span>
                   </td>
                   <td className="px-3 py-2.5 text-right">
-                    <span className="text-base font-bold text-[#1D324D]">${cierresConsolidados.totales.total_ventas.toFixed(2)}</span>
+                    <span className="text-base font-bold text-[#1D324D]">${Number(cierresConsolidados.totales.total_ventas || 0).toFixed(2)}</span>
                   </td>
                   <td className="px-3 py-2.5"></td>
                 </tr>
@@ -404,10 +442,10 @@ const CashClosureAdmin: React.FC<Props> = ({ userId, userRole }) => {
             // Filtrar cierres por fecha seleccionada
             let cierresFiltrados = cierres;
             if (filtroFechaInicio) {
-              cierresFiltrados = cierresFiltrados.filter(c => c.fecha_inicio.slice(0, 10) >= filtroFechaInicio);
+              cierresFiltrados = cierresFiltrados.filter(c => formatDateString(c.fecha_inicio, 10) >= filtroFechaInicio);
             }
             if (filtroFechaFin) {
-              cierresFiltrados = cierresFiltrados.filter(c => c.fecha_inicio.slice(0, 10) <= filtroFechaFin);
+              cierresFiltrados = cierresFiltrados.filter(c => formatDateString(c.fecha_inicio, 10) <= filtroFechaFin);
             }
             // Paginación
             const totalPages = Math.max(1, Math.ceil(cierresFiltrados.length / pageSize));
@@ -442,9 +480,9 @@ const CashClosureAdmin: React.FC<Props> = ({ userId, userRole }) => {
                             <div className="text-gray-900 font-medium">{c.usuario_nombre}</div>
                             <div className="text-xs text-gray-500">{c.usuario_usuario}</div>
                           </td>
-                          <td className="px-4 py-3 text-sm text-gray-600">{c.fecha_inicio.slice(0, 16)}</td>
-                          <td className="px-4 py-3 text-sm text-gray-600">{c.fecha_cierre.slice(0, 16)}</td>
-                          <td className="px-4 py-3 text-sm font-semibold text-[#1D324D]">${c.total_ventas.toFixed(2)}</td>
+                          <td className="px-4 py-3 text-sm text-gray-600">{formatDateString(c.fecha_inicio, 10)}</td>
+                          <td className="px-4 py-3 text-sm text-gray-600">{formatDateString(c.fecha_cierre, 16)}</td>
+                          <td className="px-4 py-3 text-sm font-semibold text-[#1D324D]">${Number(c.total_ventas || 0).toFixed(2)}</td>
                           <td className="px-4 py-3 text-sm font-semibold text-[#457373]">{c.cantidad_tickets}</td>
                           <td className="px-4 py-3 text-xs">
                             {c.detalle_tipos ? (

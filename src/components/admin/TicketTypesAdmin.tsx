@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { showConfirm, showError, showWarning } from '../../utils/dialogs';
 
 interface TicketType {
   id: number;
@@ -99,13 +100,14 @@ const TicketTypesAdmin: React.FC<TicketTypesAdminProps> = ({ onNavigateToPuertas
     }
   };
 
-  const handleOpenDialog = (ticketType?: TicketType) => {
+  const handleOpenDialog = async (ticketType?: TicketType) => {
     // Validar que haya puertas activas antes de abrir el diálogo
     if (puertas.length === 0) {
-      const confirmacion = window.confirm(
+      const confirmacion = await showConfirm(
         'No hay puertas activas disponibles.\n\n' +
         'Es necesario crear al menos una puerta antes de crear tipos de tickets.\n\n' +
-        '¿Desea ir a la página de Puertas ahora?'
+        '¿Desea ir a la página de Puertas ahora?',
+        'Puertas Requeridas'
       );
       
       if (confirmacion && onNavigateToPuertas) {
@@ -218,7 +220,7 @@ const TicketTypesAdmin: React.FC<TicketTypesAdminProps> = ({ onNavigateToPuertas
 
     // Validar puertas (ahora obligatorias)
     if (formData.puerta_ids.length === 0) {
-      alert('Debe seleccionar al menos una puerta para el tipo de ticket');
+      await showWarning('Debe seleccionar al menos una puerta para el tipo de ticket');
       return;
     }
 
@@ -230,23 +232,48 @@ const TicketTypesAdmin: React.FC<TicketTypesAdminProps> = ({ onNavigateToPuertas
 
     try {
       if (window.electronAPI) {
+        let result;
         if (editingId) {
           // Update existing ticket type
-          await window.electronAPI.updateTicketType({
+          result = await window.electronAPI.updateTicketType({
             id: editingId,
             ...formData,
           });
         } else {
           // Create new ticket type
-          await window.electronAPI.createTicketType(formData);
+          result = await window.electronAPI.createTicketType(formData);
         }
+        
+        // Verificar si la operación falló
+        if (result && !result.success) {
+          await showError(result.error || 'Error al guardar el tipo de ticket');
+          
+          // También mostrar en el formulario si es error de validación
+          if (result.error) {
+            if (result.error.includes('nombre')) {
+              setFormErrors({ nombre: result.error });
+            } else if (result.error.includes('precio')) {
+              setFormErrors({ precio: result.error });
+            }
+          }
+          return;
+        }
+        
         await loadTicketTypes();
         handleCloseDialog();
       }
     } catch (error: any) {
       console.error('Error saving ticket type:', error);
-      if (error.message && error.message.includes('UNIQUE')) {
-        setFormErrors({ nombre: 'Este nombre ya está en uso' });
+      const mensaje = error?.message || 'Error al guardar el tipo de ticket';
+      await showError(mensaje);
+      
+      // También mostrar en el formulario si es error de validación
+      if (error.message) {
+        if (error.message.includes('nombre')) {
+          setFormErrors({ nombre: error.message });
+        } else if (error.message.includes('precio')) {
+          setFormErrors({ precio: error.message });
+        }
       }
     }
   };
@@ -254,26 +281,49 @@ const TicketTypesAdmin: React.FC<TicketTypesAdminProps> = ({ onNavigateToPuertas
   const handleToggleActive = async (id: number, currentActive: boolean) => {
     try {
       if (window.electronAPI) {
-        await window.electronAPI.toggleTicketTypeStatus(id, !currentActive);
+        const result = await window.electronAPI.toggleTicketTypeStatus(id, !currentActive);
+        
+        // Verificar si la operación falló
+        if (result && !result.success) {
+          await showError(result.error || 'Error al cambiar el estado del tipo de ticket');
+          return;
+        }
+        
         await loadTicketTypes();
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error toggling ticket type status:', error);
+      const mensaje = error?.message || 'Error al cambiar el estado del tipo de ticket';
+      await showError(mensaje);
     }
   };
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm('¿Está seguro de que desea eliminar este tipo de ticket?')) {
+    const confirmacion = await showConfirm(
+      '¿Está seguro de que desea eliminar este tipo de ticket?',
+      'Confirmar Eliminación'
+    );
+    
+    if (!confirmacion) {
       return;
     }
 
     try {
       if (window.electronAPI) {
-        await window.electronAPI.deleteTicketType(id);
+        const result = await window.electronAPI.deleteTicketType(id);
+        
+        // Verificar si la operación falló
+        if (result && !result.success) {
+          await showError(result.error || 'Error al eliminar el tipo de ticket');
+          return;
+        }
+        
         await loadTicketTypes();
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting ticket type:', error);
+      const mensaje = error?.message || 'Error al eliminar el tipo de ticket';
+      await showError(mensaje);
     }
   };
 
@@ -355,7 +405,7 @@ const TicketTypesAdmin: React.FC<TicketTypesAdminProps> = ({ onNavigateToPuertas
                   </td>
                   <td className="px-8 py-6 whitespace-nowrap">
                     <div className="text-sm font-semibold text-[#457373]">
-                      ${type.precio.toFixed(2)}
+                      ${Number(type.precio || 0).toFixed(2)}
                     </div>
                   </td>
                   <td className="px-8 py-6 whitespace-nowrap">

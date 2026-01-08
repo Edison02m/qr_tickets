@@ -1,0 +1,25 @@
+# 📦 INSTRUCCIONES - MySQL ZIP Necesario
+
+## ⚠️ ACCIÓN REQUERIDA
+
+Descarga MySQL portable ZIP y colócalo en:
+`installer/mysql-portable/mysql-8.0.44-winx64.zip`
+
+### 🔽 Descargar:
+https://dev.mysql.com/downloads/mysql/
+- Versión: **8.0.44** ✅
+- OS: Windows (x86, 64-bit), **ZIP Archive**
+- Archivo: `mysql-8.0.44-winx64.zip` (~233 MB)
+
+### ✅ Resultado:
+- Instalador: ~120 MB (vs 1.2 GB descomprimido)
+- Build: 2-3 minutos
+- Instalación: Descomprime automáticamente durante setup
+
+### 🚀 Compilar:
+```
+npm run electron-pack
+```
+
+**Fecha:** 2026-01-07
+**MySQL:** 8.0.44

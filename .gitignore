@@ -23,3 +23,7 @@ yarn-debug.log*
 yarn-error.log*
 
 /dist
+
+# MySQL portable (installer)
+/installer/mysql-portable/mysql-8.0.44-winx64.zip
+/installer/mysql-portable/mysql-8.0.44-winx64/
